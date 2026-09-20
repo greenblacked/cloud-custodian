@@ -2,6 +2,7 @@ from collections import defaultdict
 
 import botocore.exceptions
 from botocore.config import Config
+from botocore.paginate import Paginator
 
 from c7n import query
 from c7n.actions import BaseAction
@@ -20,6 +21,39 @@ from c7n.tags import RemoveTag, Tag, universal_augment
 from c7n.utils import chunks, get_retry, local_session, type_schema
 
 
+class DescribeEventsPaginated(DescribeSource):
+    """Paginate an events list api that botocore has no paginator for.
+
+    events ships NextToken in/out on several of its list apis without
+    a corresponding paginator, ie. any account with more resources than
+    a single page would only get evaluated on a subset.
+    """
+
+    def resources(self, query):
+        m = self.manager.get_model()
+        enum_op, path, extra_args = m.enum_spec
+        params = dict(query or {})
+        if extra_args:
+            params.update(extra_args)
+        if self.manager.get_client:
+            client = self.manager.get_client()
+        else:
+            client = local_session(self.manager.session_factory).client(
+                m.service, self.manager.config.region)
+        pager = Paginator(
+            getattr(client, enum_op),
+            {'input_token': 'NextToken', 'output_token': 'NextToken',
+             'result_key': path},
+            client.meta.service_model.operation_model(
+                enum_op.title().replace('_', '')))
+        pager.PAGE_ITERATOR_CLS = RetryPageIterator
+        return pager.paginate(**params).build_full_result().get(path, [])
+
+
+class DescribeEventBus(DescribeEventsPaginated, DescribeWithResourceTags):
+    """Paginated list with the standard resourcegroupstagging augment."""
+
+
 @resources.register('event-bus')
 class EventBus(QueryResourceManager):
     class resource_type(TypeInfo):
@@ -33,7 +67,7 @@ class EventBus(QueryResourceManager):
         universal_taggable = object()
         permissions_augment = ("events:ListTagsForResource",)
 
-    source_mapping = {'describe': DescribeWithResourceTags,
+    source_mapping = {'describe': DescribeEventBus,
                       'config': ConfigSource}
 
 
@@ -105,6 +139,9 @@ class EventApiDestination(QueryResourceManager):
         config_type = cfn_type = 'AWS::Events::ApiDestination'
         id = name = 'Name'
 
+    source_mapping = {'describe': DescribeEventsPaginated,
+                      'config': ConfigSource}
+
 
 @resources.register('event-connection')
 class EventConnection(QueryResourceManager):
@@ -135,6 +172,9 @@ class EventConnection(QueryResourceManager):
         config_type = cfn_type = 'AWS::Events::Connection'
         id = name = 'Name'
         date = 'LastModifiedTime'
+
+    source_mapping = {'describe': DescribeEventsPaginated,
+                      'config': ConfigSource}
 
 
 class EventRuleQuery(ChildResourceQuery):
