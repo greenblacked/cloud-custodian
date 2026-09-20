@@ -213,7 +213,8 @@ def type_schema(
     if not required:
         required = []
     if isinstance(required, list):
-        required.append('type')
+        # copy, the caller may be reusing the list across schemas
+        required = required + ['type']
     s['required'] = required
     if inherits:
         extended = s

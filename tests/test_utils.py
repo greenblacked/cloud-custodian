@@ -541,6 +541,14 @@ class UtilTest(BaseTest):
         res = utils.type_schema("tester", inherits=["tested"])
         self.assertIn({"$ref": "tested"}, res["allOf"])
 
+    def test_type_schema_does_not_mutate_required(self):
+        required = ["key"]
+        first = utils.type_schema("first", required=required)
+        second = utils.type_schema("second", required=required)
+        self.assertEqual(required, ["key"])
+        self.assertEqual(first["required"], ["key", "type"])
+        self.assertEqual(second["required"], ["key", "type"])
+
     def test_generate_arn(self):
         self.assertEqual(
             utils.generate_arn("s3", "my_bucket"), "arn:aws:s3:::my_bucket"
