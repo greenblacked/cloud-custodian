@@ -1551,6 +1551,23 @@ class PythonArchiveTest(unittest.TestCase):
             self.assertEqual(b"So yummy!", reader.read("cheese.txt"))
             self.assertEqual(b"True!", reader.read("cheese/is/yummy.txt"))
 
+    def test_get_bytes_closes_stream(self):
+        # get_bytes() used to leak the file handle opened by get_stream(),
+        # which leaks a descriptor on every lambda publish.
+        archive = self.make_archive()
+        opened = []
+        get_stream = archive.get_stream
+
+        def tracking_get_stream():
+            fh = get_stream()
+            opened.append(fh)
+            return fh
+
+        archive.get_stream = tracking_get_stream
+        self.assertEqual(archive.get_bytes()[:2], b"PK")
+        self.assertEqual(len(opened), 1)
+        self.assertTrue(opened[0].closed)
+
 
 class PycCase(unittest.TestCase):
 

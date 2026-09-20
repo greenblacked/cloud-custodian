@@ -250,7 +250,8 @@ class PythonPackageArchive:
     def get_bytes(self):
         """Return the entire zip file as a byte string. """
         assert self._closed, "Archive not closed"
-        return self.get_stream().read()
+        with self.get_stream() as fh:
+            return fh.read()
 
     def get_stream(self):
         """Return the entire zip file as a stream. """
