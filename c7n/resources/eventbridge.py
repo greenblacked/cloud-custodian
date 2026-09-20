@@ -49,6 +49,13 @@ class DescribeEventsPaginated(DescribeSource):
         pager.PAGE_ITERATOR_CLS = RetryPageIterator
         return pager.paginate(**params).build_full_result().get(path, [])
 
+    def get_resources(self, ids, cache=True):
+        # none of these apis take an id filter, so an id lookup lists
+        # everything server side and filters here. that listing needs
+        # the same pagination as resources() above.
+        m = self.manager.get_model()
+        return [r for r in self.resources({}) if r[m.id] in ids]
+
 
 class DescribeEventBus(DescribeEventsPaginated, DescribeWithResourceTags):
     """Paginated list with the standard resourcegroupstagging augment."""
