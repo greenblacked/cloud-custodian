@@ -138,6 +138,7 @@ jobs:
           name: c7n
           push: false
           platforms: linux/amd64
+          uv-version: ${{ env.UV_VERSION }}
 
   Tests:
     runs-on: "${{ matrix.os }}"

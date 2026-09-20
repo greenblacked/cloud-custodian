@@ -64,7 +64,8 @@ RUN apt-get --yes update
 RUN apt-get --yes install --no-install-recommends build-essential \
     curl python3-venv python3-dev adduser
 RUN adduser --disabled-login --gecos "" custodian
-COPY --from=ghcr.io/astral-sh/uv:{uv_version} /uv /uvx /bin/
+ARG UV_VERSION={uv_version}
+COPY --from=ghcr.io/astral-sh/uv:${{UV_VERSION}} /uv /uvx /bin/
 ARG PATH="/root/.local/bin:$PATH"
 # the uv wheel cache is mounted into each `uv sync` below; it lives on a
 # different filesystem than the venv, so hardlinks are not an option.
@@ -191,7 +192,7 @@ class Image:
     defaults = dict(
         base_build_image="ubuntu:24.04",
         base_target_image="ubuntu:24.04",
-        uv_version="0.7.6",
+        uv_version="0.7.12",
         packages="",
         providers=" ".join(default_providers),
         pre_entry="",
@@ -243,7 +244,7 @@ ImageMap = {
             name="kube",
             repo="c7n",
             description="Cloud Custodian Kubernetes Hooks",
-            pre_entry="RUN ln -s /src/.venv/bin/c7n-kates /usr/local/bin/c7n-kates",
+            pre_entry="RUN ln -s /src/.venv/bin/c7n-kube /usr/local/bin/c7n-kates",
             entrypoint="/usr/local/bin/c7n-kates",
         ),
         build=[BUILD_STAGE, BUILD_KUBE],

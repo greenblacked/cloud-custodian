@@ -11,6 +11,9 @@ on:
 
 permissions: {}
 
+env:
+  UV_VERSION: "0.7.12"
+
 jobs:
   Publish:
     permissions:
@@ -19,6 +22,7 @@ jobs:
       matrix:
         image:
           - c7n
+          - c7n-kube
           - c7n-org
           - mailer
           - policystream
@@ -35,6 +39,7 @@ jobs:
           name: ${{ matrix.image }}
           push: true
           platforms: linux/arm64,linux/amd64
+          uv-version: ${{ env.UV_VERSION }}
 
       - name: Notify Slack
         uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2 # ratchet:ravsamhq/notify-slack-action@v2

@@ -158,6 +158,10 @@ analyzer-bandit:
 	 tools/c7n_mailer/c7n_mailer \
 	 tools/c7n_policystream/policystream.py \
 	 tools/c7n_trailcreator/c7n_trailcreator \
+	 tools/c7n_awscc/c7n_awscc \
+	 tools/c7n_kube/c7n_kube \
+	 tools/c7n_openstack/c7n_openstack \
+	 tools/c7n_tencentcloud/c7n_tencentcloud \
 	 c7n
 
 
@@ -172,4 +176,8 @@ analyzer-semgrep:
 	 tools/c7n_mailer/c7n_mailer \
 	 tools/c7n_policystream/policystream.py \
 	 tools/c7n_trailcreator/c7n_trailcreator \
+	 tools/c7n_awscc/c7n_awscc \
+	 tools/c7n_kube/c7n_kube \
+	 tools/c7n_openstack/c7n_openstack \
+	 tools/c7n_tencentcloud/c7n_tencentcloud \
 	 c7n
