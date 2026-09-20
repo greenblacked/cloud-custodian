@@ -18,10 +18,10 @@ import os
 import zlib
 import yaml
 import uuid
+from datetime import datetime, timezone
 
 import boto3
 import jsonschema
-from c7n.utils import utcnow_naive
 
 from c7n_mailer.cli import CONFIG_SCHEMA
 from c7n_mailer.email_delivery import EmailDelivery
@@ -173,7 +173,7 @@ def mimic_sqs(region, policy_file, policy_name, notify_index, output_dir):
         "account": "snip",
         "region": region,
         "execution_id": str(uuid.uuid4()),
-        "execution_start": utcnow_naive().timestamp(),
+        "execution_start": datetime.now(timezone.utc).timestamp(),
     }
 
     with open(policy_file, "r") as f:
