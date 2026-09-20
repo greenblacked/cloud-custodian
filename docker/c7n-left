@@ -8,10 +8,9 @@ RUN apk add --no-cache python-${PY_VERSION} py${PY_VERSION}-pip && chown -R nonr
 
 USER nonroot
 
-# Install uv and mount wheel cache
-RUN --mount=type=cache,target=/home/nonroot/.cache/uv 
 COPY --from=ghcr.io/astral-sh/uv:0.7.6 /uv /uvx /bin/
 ENV UV_PROJECT_ENVIRONMENT=/home/nonroot/venv
+ENV UV_LINK_MODE=copy
 
 # Copy enough of the c7n source that poetry can
 # use it when installing c7n-left
@@ -23,7 +22,8 @@ COPY c7n /app/c7n/c7n
 # on c7n
 WORKDIR /app/c7n/tools/c7n_left
 COPY tools/c7n_left /app/c7n/tools/c7n_left
-RUN uv sync --frozen
+RUN --mount=type=cache,target=/home/nonroot/.cache/uv,uid=65532,gid=65532 \
+    uv sync --frozen
 
 
 FROM chainguard/wolfi-base

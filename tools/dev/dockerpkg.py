@@ -21,14 +21,16 @@ log = logging.getLogger("dockerpkg")
 
 PHASE_1_INSTALL_TMPL = """
 ADD tools/c7n_{pkg}/pyproject.toml /src/tools/c7n_{pkg}/
-RUN if [[ " ${{providers[*]}} " =~ "{pkg}" ]]; then \
+RUN --mount=type=cache,target=/root/.cache/uv \\
+    if [[ " ${{providers[*]}} " =~ "{pkg}" ]]; then \
    uv sync --package c7n_{pkg} --frozen --inexact --no-install-workspace; \
 fi
 """
 
 PHASE_2_INSTALL_TMPL = """
 ADD tools/c7n_{pkg} /src/tools/c7n_{pkg}
-RUN if [[ " ${{providers[*]}} " =~ "{pkg}" ]]; then \
+RUN --mount=type=cache,target=/root/.cache/uv \\
+    if [[ " ${{providers[*]}} " =~ "{pkg}" ]]; then \
    uv sync --package c7n_{pkg} --frozen --inexact; \
 fi
 """
@@ -62,10 +64,11 @@ RUN apt-get --yes update
 RUN apt-get --yes install --no-install-recommends build-essential \
     curl python3-venv python3-dev adduser
 RUN adduser --disabled-login --gecos "" custodian
-# wheel installation cache
-RUN --mount=type=cache,target=/root/.cache/uv
 COPY --from=ghcr.io/astral-sh/uv:{uv_version} /uv /uvx /bin/
 ARG PATH="/root/.local/bin:$PATH"
+# the uv wheel cache is mounted into each `uv sync` below; it lives on a
+# different filesystem than the venv, so hardlinks are not an option.
+ENV UV_LINK_MODE=copy
 
 WORKDIR /src
 """
@@ -77,13 +80,15 @@ ARG providers="{providers}"
 
 # copy pyproject.tomls for all packages
 ADD pyproject.toml uv.lock README.md /src/
-RUN uv sync --frozen --inexact --no-install-workspace
+RUN --mount=type=cache,target=/root/.cache/uv \\
+    uv sync --frozen --inexact --no-install-workspace
 
 {PHASE_1_PKG_INSTALL_DEP}
 
 # copy packages
 ADD c7n /src/c7n/
-RUN uv sync --frozen --inexact
+RUN --mount=type=cache,target=/root/.cache/uv \\
+    uv sync --frozen --inexact
 
 {PHASE_2_PKG_INSTALL_ROOT}
 
@@ -131,7 +136,8 @@ LABEL "org.opencontainers.image.documentation"="https://cloudcustodian.io/docs"
 BUILD_KUBE = """\
 # Install c7n-kube
 ADD tools/c7n_kube /src/tools/c7n_kube
-RUN uv sync --frozen --package c7n_kube
+RUN --mount=type=cache,target=/root/.cache/uv \\
+    uv sync --frozen --package c7n_kube
 """
 
 TARGET_KUBE = """\
@@ -143,7 +149,8 @@ LABEL "org.opencontainers.image.documentation"="https://cloudcustodian.io/docs"
 BUILD_ORG = """\
 # Install c7n-org
 ADD tools/c7n_org /src/tools/c7n_org
-RUN uv sync --frozen --inexact --package c7n_org
+RUN --mount=type=cache,target=/root/.cache/uv \\
+    uv sync --frozen --inexact --package c7n_org
 """
 
 TARGET_ORG = """\
@@ -155,7 +162,8 @@ LABEL "org.opencontainers.image.documentation"="https://cloudcustodian.io/docs"
 BUILD_MAILER = """\
 # Install c7n-mailer
 ADD tools/c7n_mailer /src/tools/c7n_mailer
-RUN uv sync --frozen --all-extras --package c7n_mailer
+RUN --mount=type=cache,target=/root/.cache/uv \\
+    uv sync --frozen --all-extras --package c7n_mailer
 """
 
 TARGET_MAILER = """\
@@ -167,7 +175,8 @@ LABEL "org.opencontainers.image.documentation"="https://cloudcustodian.io/docs"
 BUILD_POLICYSTREAM = """\
 # Install c7n-policystream
 ADD tools/c7n_policystream /src/tools/c7n_policystream
-RUN uv sync --frozen --package c7n_policystream
+RUN --mount=type=cache,target=/root/.cache/uv \\
+    uv sync --frozen --package c7n_policystream
 """
 
 TARGET_POLICYSTREAM = """\
