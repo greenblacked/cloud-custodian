@@ -17,6 +17,9 @@ env:
 jobs:
   Publish:
     permissions:
+      # job level permissions replace the workflow level ones wholesale,
+      # so contents has to be restated for actions/checkout
+      contents: read
       id-token: write
     strategy:
       matrix:
@@ -27,7 +30,9 @@ jobs:
           - mailer
           - policystream
           - c7n-left
-    runs-on: ubuntu-latest-8-cores
+    # the larger runner only exists on the upstream repo; forks would queue
+    # against a label nothing ever picks up
+    runs-on: ${{ github.repository == 'cloud-custodian/cloud-custodian' && 'ubuntu-latest-8-cores' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v4
       - name: ${{ matrix.image }} build and push
