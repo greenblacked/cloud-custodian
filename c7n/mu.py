@@ -234,8 +234,11 @@ class PythonPackageArchive:
         return self
 
     def remove(self):
-        """Dispose of the temp file for garbage collection."""
+        """Dispose of the temp file."""
         if self._temp_archive_file:
+            # created with delete=False, dropping the reference alone leaks it
+            self._temp_archive_file.close()
+            os.unlink(self._temp_archive_file.name)
             self._temp_archive_file = None
 
     def get_checksum(self, encoder=base64.b64encode, hasher=hashlib.sha256):
