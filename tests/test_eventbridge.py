@@ -471,3 +471,6 @@ class ConnectionTest(BaseTest):
         self.assertEqual(
             sorted(r["Name"] for r in resources),
             ["c7n-test-conn-page-one", "c7n-test-conn-page-two"])
+        # id lookups (event modes) have to see the second page too
+        found = p.resource_manager.get_resources(["c7n-test-conn-page-two"])
+        self.assertEqual([r["Name"] for r in found], ["c7n-test-conn-page-two"])
