@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 import textwrap
 import unittest
@@ -22,6 +23,7 @@ from c7n import deprecated, policy
 from c7n.exceptions import DeprecationError
 from c7n.loader import PolicyLoader
 from c7n.ctx import ExecutionContext
+from c7n import utils
 from c7n.utils import reset_session_cache, jmespath_search
 from c7n.config import Bag, Config
 
@@ -309,4 +311,38 @@ def mock_datetime_now(tgt, dt):
         (BaseMockedDatetime,),
         {},
     )
-    return mock.patch.object(dt, "datetime", MockedDatetime)
+
+    def mocked_utcnow_naive():
+        return MockedDatetime.target
+
+    patches = []
+    if hasattr(dt, "datetime"):
+        patches.append(mock.patch.object(dt, "datetime", MockedDatetime))
+    if hasattr(dt, "utcnow_naive"):
+        patches.append(mock.patch.object(dt, "utcnow_naive", mocked_utcnow_naive))
+    if dt is datetime:
+        # patching the datetime module is a global mock, utcnow_naive is
+        # imported into module namespaces, so patch each of its users.
+        for mod in list(sys.modules.values()):
+            if mod is None or mod is utils:
+                continue
+            if getattr(mod, "utcnow_naive", None) is utils.utcnow_naive:
+                patches.append(mock.patch.object(mod, "utcnow_naive", mocked_utcnow_naive))
+    return _MockedPatches(patches, MockedDatetime)
+
+
+class _MockedPatches:
+    """Apply a set of mock patches as a single context manager."""
+
+    def __init__(self, patches, target):
+        self.patches = patches
+        self.target = target
+
+    def __enter__(self):
+        for p in self.patches:
+            p.__enter__()
+        return self.target
+
+    def __exit__(self, *args):
+        for p in reversed(self.patches):
+            p.__exit__(*args)

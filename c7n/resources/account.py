@@ -18,7 +18,9 @@ from c7n.filters.kms import KmsRelatedFilter
 from c7n.filters.multiattr import MultiAttrFilter
 from c7n.filters.missing import Missing
 from c7n.manager import resources
-from c7n.utils import local_session, type_schema, generate_arn, get_support_region, jmespath_search
+from c7n.utils import (
+    local_session, type_schema, generate_arn, get_support_region, jmespath_search,
+    utcnow_naive)
 from c7n.query import QueryResourceManager, TypeInfo, DescribeSource
 from c7n.filters import ListItemFilter
 
@@ -2466,7 +2468,7 @@ class SesConsecutiveStats(Filter):
         get_send_stats = client.get_send_statistics()
         results = []
         check_days = self.data.get('days', 2)
-        utcnow = datetime.datetime.utcnow()
+        utcnow = utcnow_naive()
         expected_dates = set()
 
         for days in range(1, check_days + 1):

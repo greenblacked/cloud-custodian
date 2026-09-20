@@ -63,7 +63,7 @@ from c7n.tags import universal_augment
 
 from c7n.utils import (
     local_session, type_schema, get_retry, chunks, snapshot_identifier,
-    merge_dict_list, filter_empty, jmespath_search)
+    merge_dict_list, filter_empty, jmespath_search, utcnow_naive)
 from c7n.resources.kms import ResourceKmsKeyAlias
 from c7n.resources.securityhub import PostFinding
 from c7n.filters.backup import ConsecutiveAwsBackupsFilter
@@ -2029,7 +2029,7 @@ class ConsecutiveSnapshots(Filter):
         client = local_session(self.manager.session_factory).client('rds')
         results = []
         retention = self.data.get('days')
-        utcnow = datetime.datetime.utcnow()
+        utcnow = utcnow_naive()
         expected_dates = set()
         for days in range(1, retention + 1):
             expected_dates.add((utcnow - timedelta(days=days)).strftime('%Y-%m-%d'))

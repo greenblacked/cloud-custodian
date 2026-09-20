@@ -1294,7 +1294,7 @@ class Policy:
             'now': (
                 utils.DeferredFormatString('now')
                 if isinstance(self.get_execution_mode(), ServerlessExecutionMode)
-                else utils.FormatDate(datetime.utcnow())
+                else utils.FormatDate(utils.utcnow_naive())
             ),
             # account increase limit action
             'service': '{service}',

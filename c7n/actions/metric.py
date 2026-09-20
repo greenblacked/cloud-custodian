@@ -1,6 +1,5 @@
 # Copyright The Cloud Custodian Authors.
 # SPDX-License-Identifier: Apache-2.0
-from datetime import datetime
 
 from .core import BaseAction
 from c7n.manager import resources
@@ -111,7 +110,7 @@ class PutMetric(BaseAction):
         # dimensions are passed as a list of dicts
         dimensions = self.data.get('dimensions', [])
 
-        now = datetime.utcnow()
+        now = utils.utcnow_naive()
 
         # reduce the resources by the key expression, and apply the operation to derive the value
         values = []

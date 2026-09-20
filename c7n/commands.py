@@ -21,7 +21,7 @@ from c7n.loader import SourceLocator
 from c7n.provider import clouds
 from c7n.policy import Policy, PolicyCollection, load as policy_load
 from c7n.schema import ElementSchema, StructureParser, generate
-from c7n.utils import load_file, local_session, SafeLoader, yaml_dump
+from c7n.utils import load_file, local_session, SafeLoader, yaml_dump, utcnow_naive
 from c7n.config import Bag, Config
 from c7n.resources import (
     load_resources, load_available, load_providers, PROVIDER_NAMES)
@@ -533,7 +533,7 @@ def _metrics_get_endpoints(options):
         start = options.start
         end = options.end
     else:
-        end = datetime.utcnow()
+        end = utcnow_naive()
         start = end - timedelta(options.days)
 
     return start, end

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import copy
 from collections import UserString
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dateutil.tz import tzutc
 import json
 import itertools
@@ -706,6 +706,14 @@ class DeferredFormatString(UserString):
         return "".join(("{", self.data, f":{format_spec}" if format_spec else "", "}"))
 
 
+def utcnow_naive():
+    """Naive datetime for the current UTC time.
+
+    Drop in replacement for datetime.utcnow(), deprecated in python 3.12.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class FormatDate:
     """a datetime wrapper with extended pyformat syntax"""
 
@@ -723,7 +731,7 @@ class FormatDate:
 
     @classmethod
     def utcnow(cls):
-        return cls(datetime.utcnow())
+        return cls(utcnow_naive())
 
     def __getattr__(self, k):
         return getattr(self._d, k)

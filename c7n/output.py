@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 
 from c7n.exceptions import InvalidOutputConfig
 from c7n.registry import PluginRegistry
-from c7n.utils import parse_url_config, join_output_path
+from c7n.utils import parse_url_config, join_output_path, utcnow_naive
 
 try:
     import psutil
@@ -483,7 +483,7 @@ class DirectoryOutput(OutputFileHandler):
             'account_id': self.ctx.options.account_id,
             'region': self.ctx.options.region,
             'policy_name': self.ctx.policy.name,
-            'now': datetime.datetime.utcnow(),
+            'now': utcnow_naive(),
             'uuid': str(uuid.uuid4()),
         }
         return data
@@ -514,7 +514,7 @@ class BlobOutput(DirectoryOutput):
             return join_output_path(
                 output_url.strip('/'),
                 self.ctx.policy.name,
-                datetime.datetime.utcnow().strftime('%Y/%m/%d/%H')
+                utcnow_naive().strftime('%Y/%m/%d/%H')
             )
         return output_url.format(**self.get_output_vars()).rstrip('/')
 

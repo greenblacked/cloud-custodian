@@ -12,9 +12,9 @@ from c7n.manager import resources
 from c7n.tags import (
     TagDelayedAction, RemoveTag, TagActionFilter, Tag, universal_augment)
 from c7n.utils import (
-    local_session, chunks, type_schema, snapshot_identifier)
+    local_session, chunks, type_schema, snapshot_identifier, utcnow_naive)
 from c7n.filters.vpc import SecurityGroupFilter, SubnetFilter
-from datetime import datetime, timedelta
+from datetime import timedelta
 from c7n.filters import Filter
 from c7n.filters import ValueFilter
 from c7n.query import RetryPageIterator
@@ -953,11 +953,11 @@ class TableConsecutiveBackups(Filter):
     def get_date(self, time):
         period = self.data.get('period')
         if period == 'weeks':
-            date = (datetime.utcnow() - timedelta(weeks=time)).strftime('%Y-%m-%d')
+            date = (utcnow_naive() - timedelta(weeks=time)).strftime('%Y-%m-%d')
         elif period == 'hours':
-            date = (datetime.utcnow() - timedelta(hours=time)).strftime('%Y-%m-%d-%H')
+            date = (utcnow_naive() - timedelta(hours=time)).strftime('%Y-%m-%d-%H')
         else:
-            date = (datetime.utcnow() - timedelta(days=time)).strftime('%Y-%m-%d')
+            date = (utcnow_naive() - timedelta(days=time)).strftime('%Y-%m-%d')
         return date
 
     def process(self, resources, event=None):
