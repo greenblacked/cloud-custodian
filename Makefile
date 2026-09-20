@@ -7,8 +7,6 @@ PKG_REPO = testpypi
 PKG_INCREMENT := patch
 PKG_SET := tools/c7n_gcp tools/c7n_kube tools/c7n_openstack tools/c7n_mailer tools/c7n_policystream tools/c7n_org tools/c7n_sphinxext tools/c7n_awscc tools/c7n_tencentcloud tools/c7n_azure tools/c7n_oci tools/c7n_left
 
-PKG_SET_OLD := tools/c7n_logexporter tools/c7n_trailcreator tools/c7n_terraform
-
 COVERAGE_TYPE := html
 ARGS :=
 IMAGE := c7n
