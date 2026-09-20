@@ -668,10 +668,9 @@ class PHDMode(LambdaMode):
         entities = []
         paginator = client.get_paginator('describe_affected_entities')
         for event_set in utils.chunks(event_arns, 10):
-            # Note: we aren't using event_set here, just event_arns.
             entities.extend(list(itertools.chain(
                             *[p['entities'] for p in paginator.paginate(
-                                filter={'eventArns': event_arns})])))
+                                filter={'eventArns': event_set})])))
         return entities
 
     def resolve_resources(self, event):

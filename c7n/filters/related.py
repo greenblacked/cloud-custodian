@@ -82,7 +82,7 @@ class RelatedResourceFilter(ValueFilter):
                 # in the event that the filter is looking specifically for absent values, we can
                 # safely assume that the non-existent related resource will have an absent value at
                 # any given key
-                if self.data['value'] == 'absent':
+                if self.data.get('value') == 'absent':
                     found.append(rid)
                 else:
                     self.log.warning(
