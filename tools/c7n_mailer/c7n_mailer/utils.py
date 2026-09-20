@@ -94,8 +94,9 @@ def get_rendered_jinja(
     execution_start = sqs_message.get("execution_start")
     if not execution_start:
         execution_start = datetime.now(tz=tzutc()).timestamp()
-    execution_start = datetime.fromtimestamp(
-        execution_start, tz=tzutc()).replace(tzinfo=None).isoformat()
+    execution_start = (
+        datetime.fromtimestamp(execution_start, tz=tzutc()).replace(tzinfo=None).isoformat()
+    )
 
     rendered_jinja = template.render(
         recipient=target,
