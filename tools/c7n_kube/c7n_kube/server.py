@@ -193,13 +193,12 @@ def init(
     if use_tls:
         import ssl
 
-        server.socket = ssl.wrap_socket(
-            server.socket,
-            server_side=True,
-            certfile=cert_path,
-            keyfile=cert_key_path,
-            ca_certs=ca_cert_path,
-        )
+        # ssl.wrap_socket() was removed in python 3.12
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(certfile=cert_path, keyfile=cert_key_path)
+        if ca_cert_path:
+            context.load_verify_locations(cafile=ca_cert_path)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
 
     log.info(f"Serving at http{'s' if use_tls else ''}://{host}:{port}")
     while True:
