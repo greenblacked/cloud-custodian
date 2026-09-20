@@ -107,8 +107,8 @@ jobs:
       - name: Install Staged
         shell: bash
         run: |
-          set -euxo pipefail
-          pip install -r wheels-manifest.txt  --index-url ${{ env.STAGE_INDEX_URL }} --extra-index-url https://pypi.org/simple/
+          set -euo pipefail
+          pip install -r wheels-manifest.txt --index-url "$STAGE_INDEX_URL" --extra-index-url https://pypi.org/simple/
 
       - name: Smoke Test
         shell: bash

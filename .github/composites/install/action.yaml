@@ -53,7 +53,7 @@ runs:
            echo "Cache Green"
         else
            rm -rf .venv
-           echo "venv==recreate" >> $GITHUB_OUTPUT
+           echo "venv=recreate" >> $GITHUB_OUTPUT
            echo "Cache Red"
         fi
 

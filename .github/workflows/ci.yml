@@ -47,7 +47,7 @@ jobs:
           make lint
       - name: Check Workflows
         run: |
-          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash | bash -s -- 1.7.7
           ./actionlint -color
 
   Analyzer:
