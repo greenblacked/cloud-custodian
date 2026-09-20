@@ -5,6 +5,7 @@ inputs:
     required: true
   uv-version:
     required: true
+    default: "0.7.12"
 outputs:
   uv-version:
     description: "uv version"
