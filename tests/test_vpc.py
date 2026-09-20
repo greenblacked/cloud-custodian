@@ -1,12 +1,14 @@
 # Copyright The Cloud Custodian Authors.
 # SPDX-License-Identifier: Apache-2.0
+import json
 import logging
+import os
 import time
 from .common import BaseTest, functional, event_data, load_data
 from unittest.mock import MagicMock
 
 from botocore.exceptions import ClientError as BotoClientError
-from c7n.exceptions import PolicyValidationError
+from c7n.exceptions import PolicyValidationError, PolicyExecutionError
 from c7n.resources.aws import shape_validate
 from pytest_terraform import terraform
 
@@ -2436,6 +2438,52 @@ class SecurityGroupTest(BaseTest):
                 validate=True)
         except PolicyValidationError:
             self.fail("should pass validation")
+
+    def test_match_resource_validator_requires_key(self):
+        # match-resource still needs a key to compare on
+        with self.assertRaises(PolicyValidationError):
+            self.load_policy(
+                {'name': 'related-sg',
+                 'resource': 'elb',
+                 'filters': [{'type': 'security-group', 'match-resource': True}]},
+                validate=True)
+
+    def test_subnet_filter_value_from(self):
+        # a value_from source has to be applied the same way a literal value is
+        values = os.path.join(self.get_temp_dir(), 'locations.json')
+        with open(values, 'w') as fh:
+            json.dump(['Database'], fh)
+        p = self.load_policy(
+            {'name': 'ec2-subnet',
+             'resource': 'ec2',
+             'filters': [
+                 {'type': 'subnet',
+                  'key': 'tag:Location',
+                  'op': 'in',
+                  'value_from': {'url': 'file://' + values, 'format': 'json'}}]})
+        f = p.resource_manager.filters[0]
+        f.route_tables = {}
+        subnet = {'SubnetId': 'subnet-1', 'VpcId': 'vpc-1', 'Tags': []}
+        self.assertFalse(f.match(dict(subnet, Tags=[{'Key': 'Location', 'Value': 'Web'}])))
+        self.assertTrue(f.match(dict(subnet, Tags=[{'Key': 'Location', 'Value': 'Database'}])))
+
+    def test_modify_security_groups_unresolved_name(self):
+        # a name that only exists in another vpc must not silently reuse the
+        # id resolved for the previous name
+        p = self.load_policy(
+            {'name': 'sg-modify',
+             'resource': 'ec2',
+             'actions': [{'type': 'modify-security-groups', 'add': ['web', 'db']}]})
+        action = p.resource_manager.actions[0]
+        groups = [
+            {'GroupName': 'web', 'GroupId': 'sg-web', 'VpcId': 'vpc-1'},
+            {'GroupName': 'db', 'GroupId': 'sg-db', 'VpcId': 'vpc-2'},
+        ]
+        r = {'InstanceId': 'i-1', 'VpcId': 'vpc-1'}
+        with self.assertRaises(PolicyExecutionError):
+            action.resolve_group_names(r, ['web', 'db'], groups)
+        self.assertEqual(
+            action.resolve_group_names(r, ['web'], groups), ['sg-web'])
 
     @functional
     def test_only_ports(self):

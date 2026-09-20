@@ -188,7 +188,7 @@ class SystemStats(DeltaStats):
     def __enter__(self):
         self.push_snapshot()
 
-    def __exit__(self):
+    def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):
         self.pop_snapshot()
 
     def get_metadata(self):

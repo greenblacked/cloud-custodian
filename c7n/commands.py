@@ -518,7 +518,7 @@ def _print_cls_schema(cls):
         print(yaml_dump(component_schema))
     else:
         # Shouldn't ever hit this, so exclude from cover
-        print("No schema is available for this item.", file=sys.sterr)  # pragma: no cover
+        print("No schema is available for this item.", file=sys.stderr)  # pragma: no cover
     print('')
     return
 

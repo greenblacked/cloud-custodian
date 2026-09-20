@@ -412,15 +412,16 @@ class ConfigSource:
                 len(resource_ids),
                 self.manager.__class__.__name__.lower())
 
+            futures = []
             for resource_set in chunks(resource_ids, 50):
-                futures = []
                 futures.append(w.submit(self.get_resources, resource_set))
-                for f in as_completed(futures):
-                    if f.exception():
-                        self.manager.log.error(
-                            "Exception getting resources from config \n %s" % (
-                                f.exception()))
-                    results.extend(f.result())
+            for f in as_completed(futures):
+                if f.exception():
+                    self.manager.log.error(
+                        "Exception getting resources from config \n %s" % (
+                            f.exception()))
+                    continue
+                results.extend(f.result())
         return results
 
     def resources(self, query=None):

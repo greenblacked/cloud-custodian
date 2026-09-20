@@ -122,7 +122,7 @@ class PutMetric(BaseAction):
             # I had to wrap resourses in a dict like this in order to not have jmespath expressions
             # start with [] in the yaml files.  It fails to parse otherwise.
         except TypeError as oops:
-            self.log.error(oops.message)
+            self.log.error(str(oops))
 
         value = 0
         try:
