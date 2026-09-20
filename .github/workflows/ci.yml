@@ -87,7 +87,7 @@ jobs:
           uv-version: ${{ env.UV_VERSION }}
 
       - name: Set up doc cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v4
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache/restore@v4
         id: sphinx
         with:
           path: |
@@ -97,7 +97,9 @@ jobs:
             docs/source/azure/resources
             docs/source/awscc/resources
             docs/source/tencentcloud/resources
-          key: sphinx-docs-${{ runner.os }}-3.11-v3-${{ hashFiles('uv.lock') }}
+          key: sphinx-docs-${{ runner.os }}-${{ env.DEFAULT_PY_VERSION }}-v3-${{ hashFiles('uv.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            sphinx-docs-${{ runner.os }}-${{ env.DEFAULT_PY_VERSION }}-v3-${{ hashFiles('uv.lock') }}-
 
       - name: Build Docs
         shell: bash
@@ -118,7 +120,7 @@ jobs:
             docs/source/azure/resources
             docs/source/awscc/resources
             docs/source/tencentcloud/resources
-          key: sphinx-docs-${{ runner.os }}-3.11-v3-${{ hashFiles('uv.lock') }}
+          key: sphinx-docs-${{ runner.os }}-${{ env.DEFAULT_PY_VERSION }}-v3-${{ hashFiles('uv.lock') }}-${{ github.run_id }}
 
       - name: Deploy Docs
         if: ${{ github.event_name == 'push' }}
@@ -130,6 +132,7 @@ jobs:
 
   Docker:
     runs-on: ubuntu-latest
+    needs: Lint
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v4
       - name: c7n build and test
