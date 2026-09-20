@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # PKG_DOMAIN, PKG_REPO, and valid aws creds and region as pre-reqs
-set -euxo pipefail
+set -euo pipefail
 export CODEARTIFACT_OWNER=`aws sts get-caller-identity --query Account --output text`
 export CODEARTIFACT_REPOSITORY_URL=`aws codeartifact get-repository-endpoint --domain $PKG_DOMAIN --domain-owner $CODEARTIFACT_OWNER --repository $PKG_REPO --format pypi --query repositoryEndpoint --output text`
 export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain $PKG_DOMAIN --domain-owner $CODEARTIFACT_OWNER --query authorizationToken --output text`
 export CODEARTIFACT_USER=aws
+# keep the token out of the job log, it is not a github secret so it is not masked by default
+echo "::add-mask::${CODEARTIFACT_AUTH_TOKEN}"
 
 echo TWINE_USERNAME=$CODEARTIFACT_USER >> $GITHUB_ENV
 echo TWINE_PASSWORD=$CODEARTIFACT_AUTH_TOKEN >> $GITHUB_ENV
