@@ -457,7 +457,6 @@ class PolicyMetaLint(BaseTest):
             "AWS::S3::AccessGrant",
             "AWS::S3::AccessGrantsInstance",
             "AWS::S3::AccessGrantsLocation",
-            "AWS::S3Tables::TableBucket",
             "AWS::S3Tables::TableBucketPolicy",
             "AWS::SES::MailManagerTrafficPolicy",
             "AWS::SSM::ResourceDataSync",
