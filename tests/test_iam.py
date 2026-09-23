@@ -22,6 +22,7 @@ from c7n.filters.iamaccess import CrossAccountAccessFilter, PolicyChecker
 from c7n.mu import LambdaManager, LambdaFunction, PythonPackageArchive
 from botocore.exceptions import ClientError
 from c7n.resources.aws import shape_validate
+from c7n.resources import iam as iam_resources
 from c7n.resources.sns import SNS
 from c7n.resources.iam import (
     UserMfaDevice,
@@ -4097,3 +4098,19 @@ class AccessKeyTest(BaseTest):
         # Just check that we can run this without error
         # The actual age filter logic is handled by C7N core
         self.assertTrue(len(resources) == 1)
+
+
+class IamUserGroupFilterErrorTest(BaseTest):
+
+    def test_group_lookup_errors_are_logged(self):
+        p = self.load_policy({
+            'name': 'iam-user-group', 'resource': 'iam-user',
+            'filters': [{'type': 'group', 'key': 'GroupName', 'value': 'Admins'}]})
+        f = p.resource_manager.filters[0]
+        client = mock.MagicMock()
+        client.list_groups_for_user.side_effect = ValueError('throttled')
+        self.patch(iam_resources, 'local_session', lambda factory: mock.MagicMock(
+            client=mock.MagicMock(return_value=client)))
+        with self.assertLogs(f.log, level='ERROR') as logs:
+            self.assertEqual(f.process([{'UserName': 'alice'}]), [])
+        self.assertIn('throttled', logs.output[0])

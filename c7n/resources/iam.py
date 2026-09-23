@@ -2141,7 +2141,9 @@ class GroupMembership(ValueFilter):
                 futures.append(
                     w.submit(self.get_user_groups, client, user_set))
             for f in as_completed(futures):
-                pass
+                if f.exception():
+                    self.log.error(
+                        "Error retrieving groups for users: %s", f.exception())
 
         matched = []
         for r in resources:
