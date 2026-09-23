@@ -50,7 +50,7 @@ jobs:
           PKG_DOMAIN: release-staging
           PKG_REPO: stagec7n
         run: |
-          ./tools/dev/staging-auth.sh >> /dev/null
+          ./tools/dev/staging-auth.sh
 
       - name: Stage Wheels
         shell: bash
@@ -102,7 +102,7 @@ jobs:
           PKG_DOMAIN: release-staging
           PKG_REPO: stagec7n
         run: |
-          ./tools/dev/staging-auth.sh >> /dev/null
+          ./tools/dev/staging-auth.sh
 
       - name: Install Staged
         shell: bash
