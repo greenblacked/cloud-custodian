@@ -438,6 +438,34 @@ client.return_value = mock_client
             days = self.manager._calculate_last_signin_days(user)
             self.assertEqual(days, 90)  # Approximately 90 days between Jan 1 and April 1
 
+    def test_calculate_days_on_non_utc_host(self):
+        """now() must be taken in the timestamp's zone, not local wall time
+        relabelled as utc"""
+        import os
+        import time
+        from datetime import timedelta
+
+        def restore_tz(old=os.environ.get('TZ')):
+            if old is None:
+                os.environ.pop('TZ', None)
+            else:
+                os.environ['TZ'] = old
+            time.tzset()
+
+        self.addCleanup(restore_tz)
+        # utc+14, local wall time is 14 hours ahead of utc
+        os.environ['TZ'] = 'Pacific/Kiritimati'
+        time.tzset()
+
+        twelve_hours_ago = (
+            datetime.now(timezone.utc) - timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        self.assertEqual(
+            self.manager._calculate_last_signin_days(
+                {'signInActivity': {'lastSignInDateTime': twelve_hours_ago}}), 0)
+        self.assertEqual(
+            self.manager._calculate_password_age(
+                {'lastPasswordChangeDateTime': twelve_hours_ago}), 0)
+
     def test_calculate_last_signin_days_never_signed_in(self):
         """Test _calculate_last_signin_days when user never signed in"""
         user = {}  # No signInActivity
