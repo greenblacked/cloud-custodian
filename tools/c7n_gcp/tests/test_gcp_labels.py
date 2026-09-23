@@ -180,3 +180,37 @@ class LabelActionFilterTest(BaseTest):
 
         assert marked_for.parse("custom-message-delete-2022_10_23_12_10") == (
             'custom-message', 'delete', '2022_10_23_12_10')
+
+
+class LabelActionFilterTimezoneTest(BaseTest):
+
+    def set_tz(self, name):
+        import os
+        import time
+
+        def restore(old=os.environ.get('TZ')):
+            if old is None:
+                os.environ.pop('TZ', None)
+            else:
+                os.environ['TZ'] = old
+            time.tzset()
+
+        self.addCleanup(restore)
+        os.environ['TZ'] = name
+        time.tzset()
+
+    def test_marked_for_op_compares_in_policy_tz(self):
+        from datetime import datetime, timedelta, timezone
+        # the host is utc+14, the label is written in utc (the default tz)
+        self.set_tz('Pacific/Kiritimati')
+        p = self.load_policy(get_policy(None, [{'type': 'marked-for-op', 'op': 'stop'}]))
+        f = p.resource_manager.filters[0]
+        f.process([])
+
+        def label(delta):
+            when = (datetime.now(timezone.utc) + delta).strftime('%Y_%m_%d__%H_%M')
+            return {'name': 'i', 'labels': {'custodian_status': 'resource_policy-stop-' + when}}
+
+        # due in five hours utc: not yet, however far ahead the host clock is
+        self.assertFalse(f(label(timedelta(hours=5))))
+        self.assertTrue(f(label(timedelta(hours=-1))))
