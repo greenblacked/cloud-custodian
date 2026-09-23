@@ -2448,6 +2448,55 @@ class SecurityGroupTest(BaseTest):
                  'filters': [{'type': 'security-group', 'match-resource': True}]},
                 validate=True)
 
+    def test_match_resource_per_resource_value(self):
+        # each resource must be compared against its own tag value, not the
+        # first resource's
+        p = self.load_policy(
+            {'name': 'related-sg',
+             'resource': 'elb',
+             'filters': [
+                 {'type': 'security-group',
+                  'match-resource': True,
+                  'key': 'tag:Application'}]})
+        f = p.resource_manager.filters[0]
+        related = {
+            'sg-1': {'GroupId': 'sg-1', 'Tags': [{'Key': 'Application', 'Value': 'web'}]},
+            'sg-2': {'GroupId': 'sg-2', 'Tags': [{'Key': 'Application', 'Value': 'db'}]},
+        }
+        web = {'LoadBalancerName': 'web', 'SecurityGroups': ['sg-1'],
+               'Tags': [{'Key': 'Application', 'Value': 'web'}]}
+        db = {'LoadBalancerName': 'db', 'SecurityGroups': ['sg-2'],
+              'Tags': [{'Key': 'Application', 'Value': 'db'}]}
+        crossed = {'LoadBalancerName': 'crossed', 'SecurityGroups': ['sg-1'],
+                   'Tags': [{'Key': 'Application', 'Value': 'db'}]}
+        self.assertTrue(f.process_resource(web, related))
+        self.assertTrue(f.process_resource(db, related))
+        self.assertFalse(f.process_resource(crossed, related))
+
+    def test_match_resource_per_resource_value_by_id(self):
+        p = self.load_policy(
+            {'name': 'related-endpoint',
+             'resource': 'vpc',
+             'filters': [
+                 {'type': 'vpc-endpoint',
+                  'match-resource': True,
+                  'key': 'tag:Env',
+                  'value': 'replaced-per-resource'}]},
+            # no by-id filter exposes match-resource in its schema yet, the
+            # shared code path still has to honour it
+            validate=False)
+        f = p.resource_manager.filters[0]
+        related = {
+            'vpc-1': [{'VpcEndpointId': 'vpce-1', 'VpcId': 'vpc-1',
+                       'Tags': [{'Key': 'Env', 'Value': 'dev'}]}],
+            'vpc-2': [{'VpcEndpointId': 'vpce-2', 'VpcId': 'vpc-2',
+                       'Tags': [{'Key': 'Env', 'Value': 'prod'}]}],
+        }
+        dev = {'VpcId': 'vpc-1', 'Tags': [{'Key': 'Env', 'Value': 'dev'}]}
+        prod = {'VpcId': 'vpc-2', 'Tags': [{'Key': 'Env', 'Value': 'prod'}]}
+        self.assertTrue(f.process_resource(dev, related))
+        self.assertTrue(f.process_resource(prod, related))
+
     def test_subnet_filter_value_from(self):
         # a value_from source has to be applied the same way a literal value is
         values = os.path.join(self.get_temp_dir(), 'locations.json')
