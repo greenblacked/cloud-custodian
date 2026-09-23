@@ -400,7 +400,7 @@ class SetQueryLogging(BaseAction):
         'route53:DeleteQueryLoggingConfig',
         'logs:DescribeLogGroups',
         'logs:CreateLogGroup',
-        'logs:GetResourcePolicy',
+        'logs:DescribeResourcePolicies',
         'logs:PutResourcePolicy')
 
     schema = type_schema(
@@ -432,7 +432,7 @@ class SetQueryLogging(BaseAction):
     def get_permissions(self):
         perms = []
         if self.data.get('set-permissions'):
-            perms.extend(('logs:GetResourcePolicy', 'logs:PutResourcePolicy'))
+            perms.extend(('logs:DescribeResourcePolicies', 'logs:PutResourcePolicy'))
         if self.data.get('state', True):
             perms.append('route53:CreateQueryLoggingConfig')
             perms.append('logs:CreateLogGroup')
