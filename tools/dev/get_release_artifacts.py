@@ -57,7 +57,7 @@ def main():
     ]
     artifact_builds = json.loads(run(command))
 
-    now = datetime.datetime.utcnow().replace(tzinfo=tz.tzutc())
+    now = datetime.datetime.now(tz.tzutc())
     candidate = None
 
     for build in artifact_builds:
