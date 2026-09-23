@@ -1658,20 +1658,12 @@ class SQSSubscription:
 
         modified = False
         for queue_arn in self.queue_arns:
-            mapping = None
-            if queue_arn in event_mappings:
-                mapping = event_mappings[queue_arn]
-                if (mapping['State'] == 'Enabled' or
-                        mapping['BatchSize'] != self.batch_size):
-                    continue
-                modified = True
-            else:
-                modified = True
-
-            if not modified:
-                return modified
-
+            mapping = event_mappings.get(queue_arn)
             if mapping is not None:
+                # already subscribed as configured
+                if (mapping['State'] == 'Enabled' and
+                        mapping['BatchSize'] == self.batch_size):
+                    continue
                 log.info(
                     "Updating subscription %s on %s", func.name, queue_arn)
                 client.update_event_source_mapping(
@@ -1684,7 +1676,8 @@ class SQSSubscription:
                     FunctionName=func.name,
                     EventSourceArn=queue_arn,
                     BatchSize=self.batch_size)
-            return modified
+            modified = True
+        return modified
 
     def remove(self, func, func_deleted=True):
         client = local_session(self.session_factory).client('lambda')

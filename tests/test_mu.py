@@ -17,6 +17,7 @@ from unittest.mock import patch
 import zipfile
 
 
+from c7n import mu as c7n_mu
 from c7n.config import Config
 from c7n.mu import (
     custodian_archive,
@@ -1384,6 +1385,55 @@ class PolicyLambdaProvision(Publish):
         func.func_data["runtime"] = "python3.6"
         result = mgr.publish(func)
         self.assertEqual(result["Runtime"], "python3.6")
+
+
+class SQSSubscriptionTest(BaseTest):
+
+    def get_client(self, mappings=()):
+        client = mock.MagicMock()
+        client.list_event_source_mappings.return_value = {
+            'EventSourceMappings': list(mappings)}
+        session = mock.MagicMock()
+        session.client.return_value = client
+        self.patch(c7n_mu, 'local_session', lambda factory: session)
+        return client
+
+    def test_add_subscribes_every_queue(self):
+        client = self.get_client()
+        sub = SQSSubscription(None, ['arn:aws:sqs:us-east-1:123:a', 'arn:aws:sqs:us-east-1:123:b'])
+        self.assertTrue(sub.add(mock.MagicMock(name='func'), None))
+        self.assertEqual(
+            [c[1]['EventSourceArn'] for c in client.create_event_source_mapping.call_args_list],
+            ['arn:aws:sqs:us-east-1:123:a', 'arn:aws:sqs:us-east-1:123:b'])
+
+    def test_add_updates_only_mismatched_mappings(self):
+        client = self.get_client([
+            # as configured, left alone
+            {'EventSourceArn': 'arn:aws:sqs:us-east-1:123:ok', 'UUID': 'ok',
+             'State': 'Enabled', 'BatchSize': 10},
+            {'EventSourceArn': 'arn:aws:sqs:us-east-1:123:disabled', 'UUID': 'disabled',
+             'State': 'Disabled', 'BatchSize': 10},
+            {'EventSourceArn': 'arn:aws:sqs:us-east-1:123:batch', 'UUID': 'batch',
+             'State': 'Enabled', 'BatchSize': 1},
+        ])
+        sub = SQSSubscription(None, [
+            'arn:aws:sqs:us-east-1:123:ok',
+            'arn:aws:sqs:us-east-1:123:disabled',
+            'arn:aws:sqs:us-east-1:123:batch'])
+        self.assertTrue(sub.add(mock.MagicMock(name='func'), None))
+        self.assertEqual(
+            [c[1]['UUID'] for c in client.update_event_source_mapping.call_args_list],
+            ['disabled', 'batch'])
+        client.create_event_source_mapping.assert_not_called()
+
+    def test_add_nothing_to_do(self):
+        client = self.get_client([
+            {'EventSourceArn': 'arn:aws:sqs:us-east-1:123:ok', 'UUID': 'ok',
+             'State': 'Enabled', 'BatchSize': 10}])
+        sub = SQSSubscription(None, ['arn:aws:sqs:us-east-1:123:ok'])
+        self.assertFalse(sub.add(mock.MagicMock(name='func'), None))
+        client.update_event_source_mapping.assert_not_called()
+        client.create_event_source_mapping.assert_not_called()
 
 
 class PythonArchiveTest(unittest.TestCase):
