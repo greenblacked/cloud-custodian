@@ -55,6 +55,12 @@ PHASE_2_PKG_INSTALL_ROOT += "".join(
 
 BOOTSTRAP_STAGE = """\
 # Dockerfiles are generated from tools/dev/dockerpkg.py
+ARG UV_VERSION={uv_version}
+
+# BuildKit does not expand variables in `COPY --from`, so pull uv in as a
+# named stage and copy from that instead.
+FROM ghcr.io/astral-sh/uv:${{UV_VERSION}} AS uv
+
 FROM {base_build_image} AS build-env
 
 SHELL ["/bin/bash", "-c"]
@@ -64,9 +70,7 @@ RUN apt-get --yes update
 RUN apt-get --yes install --no-install-recommends build-essential \
     curl python3-venv python3-dev adduser
 RUN adduser --disabled-login --gecos "" custodian
-ARG UV_VERSION={uv_version}
-COPY --from=ghcr.io/astral-sh/uv:${{UV_VERSION}} /uv /uvx /bin/
-ARG PATH="/root/.local/bin:$PATH"
+COPY --from=uv /uv /uvx /bin/
 # the uv wheel cache is mounted into each `uv sync` below; it lives on a
 # different filesystem than the venv, so hardlinks are not an option.
 ENV UV_LINK_MODE=copy
