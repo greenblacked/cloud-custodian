@@ -19,8 +19,9 @@ class ProviderTest(BaseTest):
         self.assertEqual([r.type for r in rtypes], ['ec2', 'app-elb'])
         self.assertEqual(missing, ['aws.foobar'])
 
-#    def test_import_resource_classes_wildcard(self):
-#        rtypes = import_resource_classes(ResourceMap, ('*',))
+    def test_resource_map_entries_import(self):
+        # every aws resource map entry must name a class that exists
+        self.assertEqual(load_resources(['aws.*']), [])
 
     def test_get_resource_class(self):
         with self.assertRaises(KeyError) as ectx:
