@@ -138,7 +138,9 @@ def test_image_metadata(image_name):
     image = client.images.get(image_name)
     labels = set(image.labels)
     labels.discard("org.opencontainers.image.ref.name")
-    assert labels == {
+    # base images may carry their own labels (e.g. chainguard/wolfi-base for
+    # c7n-left adds dev.chainguard.* and vendor/authors), so only require ours.
+    expected = {
         "name",
         "repository",
         "org.opencontainers.image.created",
@@ -151,6 +153,7 @@ def test_image_metadata(image_name):
         "org.opencontainers.image.url",
         "org.opencontainers.image.version",
     }
+    assert expected <= labels, sorted(expected - labels)
 
 
 @pytest.mark.skipif(
