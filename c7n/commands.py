@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from collections import Counter, defaultdict
 from collections.abc import Mapping
-from datetime import timedelta, datetime
+from datetime import timedelta
 from functools import wraps
 import json
 import itertools
@@ -337,7 +337,7 @@ def report(options, policies):
         sys.exit(1)
 
     delta = timedelta(days=options.days)
-    begin_date = datetime.now() - delta
+    begin_date = utcnow_naive() - delta
     do_report(
         policies, begin_date, options, sys.stdout, raw_output_fh=options.raw)
 
