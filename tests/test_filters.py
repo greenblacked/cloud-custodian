@@ -1198,6 +1198,31 @@ class TestFilterRegistry(unittest.TestCase):
         self.assertRaises(PolicyValidationError, reg.factory, {"type": ""})
 
 
+class ValueFromValidateTest(BaseTest):
+
+    value_from = {'url': 'file:///nonexistent.json', 'format': 'json'}
+
+    def test_regex_with_value_from(self):
+        f = filters.factory(
+            {'type': 'value', 'key': 'Name', 'op': 'regex', 'value_from': self.value_from})
+        self.assertIs(f.validate(), f)
+
+    def test_date_with_value_from(self):
+        f = filters.factory(
+            {'type': 'value', 'key': 'LaunchTime', 'op': 'less-than',
+             'value_type': 'date', 'value_from': self.value_from})
+        self.assertIs(f.validate(), f)
+
+    def test_literal_values_still_checked(self):
+        with self.assertRaises(PolicyValidationError):
+            filters.factory(
+                {'type': 'value', 'key': 'Name', 'op': 'regex', 'value': '('}).validate()
+        with self.assertRaises(PolicyValidationError):
+            filters.factory(
+                {'type': 'value', 'key': 'LaunchTime', 'op': 'less-than',
+                 'value_type': 'date', 'value': 'not a date'}).validate()
+
+
 class TestMetricsFilter(BaseTest):
 
     def test_missing_metrics(self):
