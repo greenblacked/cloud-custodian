@@ -37,7 +37,7 @@ test-coverage:
             --cov tools/c7n_kube/c7n_kube \
             --cov tools/c7n_left/c7n_left \
             --cov tools/c7n_mailer/c7n_mailer \
-            --cov tools/c7n_policystream/policystream.py \
+            --cov policystream \
             --cov tools/c7n_tencentcloud/c7n_tencentcloud \
             --cov tools/c7n_oci/c7n_oci \
             tests tools $(ARGS)
