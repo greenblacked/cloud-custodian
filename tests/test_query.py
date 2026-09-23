@@ -229,3 +229,56 @@ class QueryResourceManagerTest(BaseTest):
         # Check that the warning message was logged
         self.assertTrue("Resource not found: get_core_network using" in output.getvalue())
         self.assertTrue(resources[0]["CoreNetworkArn"] not in output.getvalue())
+
+
+class GenericPaginationTest(BaseTest):
+    """enum ops with a page token but no botocore paginator get paged."""
+
+    def stubbed(self, service, method, pages, **params):
+        import boto3
+        from botocore.stub import Stubber
+        client = boto3.Session(region_name='us-east-1').client(
+            service, aws_access_key_id='x', aws_secret_access_key='x')
+        self.assertFalse(client.can_paginate(method))
+        stubber = Stubber(client)
+        for expected, page in pages:
+            stubber.add_response(method, page, dict(params, **expected))
+        stubber.activate()
+        self.addCleanup(stubber.deactivate)
+        return client, stubber
+
+    def test_next_token(self):
+        client, stubber = self.stubbed('athena', 'list_work_groups', [
+            ({}, {'WorkGroups': [{'Name': 'a'}], 'NextToken': 't1'}),
+            ({'NextToken': 't1'}, {'WorkGroups': [{'Name': 'b'}]})])
+        data = ResourceQuery(None)._invoke_client_enum(
+            client, 'list_work_groups', {}, 'WorkGroups')
+        self.assertEqual([w['Name'] for w in data], ['a', 'b'])
+        stubber.assert_no_pending_responses()
+
+    def test_marker_and_flattened_path(self):
+        client, stubber = self.stubbed('rds', 'describe_db_shard_groups', [
+            ({}, {'DBShardGroups': [{'DBShardGroupIdentifier': 'a'}], 'Marker': 'm1'}),
+            ({'Marker': 'm1'}, {'DBShardGroups': [{'DBShardGroupIdentifier': 'b'}]})])
+        data = ResourceQuery(None)._invoke_client_enum(
+            client, 'describe_db_shard_groups', {}, 'DBShardGroups[]')
+        self.assertEqual([g['DBShardGroupIdentifier'] for g in data], ['a', 'b'])
+        stubber.assert_no_pending_responses()
+
+    def test_no_shared_token_single_call(self):
+        # wafv2 hands back NextMarker even on single page listings, it is
+        # deliberately not paged on
+        client, stubber = self.stubbed('wafv2', 'list_web_acls', [
+            ({}, {'WebACLs': [{'Name': 'a'}], 'NextMarker': 'a'})], Scope='REGIONAL')
+        data = ResourceQuery(None)._invoke_client_enum(
+            client, 'list_web_acls', {'Scope': 'REGIONAL'}, 'WebACLs')
+        self.assertEqual([w['Name'] for w in data], ['a'])
+        stubber.assert_no_pending_responses()
+
+    def test_complex_path_single_call(self):
+        client, stubber = self.stubbed('athena', 'list_work_groups', [
+            ({}, {'WorkGroups': [{'Name': 'a'}], 'NextToken': 't1'})])
+        data = ResourceQuery(None)._invoke_client_enum(
+            client, 'list_work_groups', {}, 'WorkGroups[].Name')
+        self.assertEqual(data, ['a'])
+        stubber.assert_no_pending_responses()

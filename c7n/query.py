@@ -12,6 +12,7 @@ import json
 from typing import List
 
 import os
+import re
 
 from c7n.actions import ActionRegistry
 from c7n.exceptions import ClientError, ResourceLimitExceeded, PolicyExecutionError
@@ -53,6 +54,8 @@ class ResourceQuery:
                 p.PAGE_ITERATOR_CLS = RetryPageIterator
             results = p.paginate(**params)
             data = results.build_full_result()
+        elif (p := _generic_paginator(client, enum_op, path)) is not None:
+            data = p.paginate(**params).build_full_result()
         else:
             op = getattr(client, enum_op)
             data = op(**params)
@@ -211,6 +214,45 @@ class QueryMeta(type):
 
 def _napi(op_name):
     return op_name.title().replace('_', '')
+
+
+# pagination tokens apis use without always shipping a botocore paginator.
+# NextMarker is left out on purpose: waf and wafv2 (the only users here)
+# hand back a NextMarker on every listing, including single page ones, and
+# how they answer a request for the page after the last is unverified.
+_PAGE_TOKENS = ('NextToken', 'nextToken', 'Marker')
+# result keys botocore's build_full_result can merge and write back
+_RESULT_KEY = re.compile(r'^[A-Za-z_]\w*(\.[A-Za-z_]\w*)*$')
+
+
+def _generic_paginator(client, enum_op, path):
+    """A paginator for an enum op that pages but has no botocore paginator.
+
+    Plenty of apis take and return a NextToken (or similar) without botocore
+    shipping a paginator for them, and a single call then only ever sees the
+    first page. When the same token is in both the input and output shapes,
+    page on it. Returns None when that can't be done safely.
+    """
+    if not path:
+        return None
+    # 'Items[]' pages the same as 'Items', the flatten is applied afterwards
+    result_key = path[:-2] if path.endswith('[]') else path
+    if not _RESULT_KEY.match(result_key):
+        return None
+    api_name = client.meta.method_to_api_mapping.get(enum_op, _napi(enum_op))
+    model = client.meta.service_model.operation_model(api_name)
+    if model.input_shape is None or model.output_shape is None:
+        return None
+    inputs, outputs = model.input_shape.members, model.output_shape.members
+    token = next((t for t in _PAGE_TOKENS if t in inputs and t in outputs), None)
+    if token is None:
+        return None
+    paginator = Paginator(
+        getattr(client, enum_op),
+        {'input_token': token, 'output_token': token, 'result_key': result_key},
+        model)
+    paginator.PAGE_ITERATOR_CLS = RetryPageIterator
+    return paginator
 
 
 sources = PluginRegistry('sources')
