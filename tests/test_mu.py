@@ -1561,6 +1561,26 @@ class PythonArchiveTest(unittest.TestCase):
         self.assertFalse(os.path.exists(path))
         archive.__del__()
 
+    def test_remove_failure_clears_temp_file(self):
+        # a failed unlink in remove() must not leave the finalizer to retry
+        # it (and raise from __del__)
+        archive = self.make_archive()
+        os.unlink(archive.path)
+        with self.assertRaises(FileNotFoundError):
+            archive.remove()
+        self.assertIsNone(archive._temp_archive_file)
+        archive.__del__()
+
+    def test_del_tolerates_missing_temp_file(self):
+        # no remove() cleanup here, the file is deliberately gone
+        archive = PythonPackageArchive()
+        archive.close()
+        path = archive.path
+        os.unlink(path)
+        # nothing to raise to from a finalizer
+        archive.__del__()
+        self.assertFalse(os.path.exists(path))
+
     def test_get_bytes_closes_stream(self):
         # get_bytes() used to leak the file handle opened by get_stream(),
         # which leaks a descriptor on every lambda publish.

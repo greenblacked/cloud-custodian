@@ -88,11 +88,12 @@ class PythonPackageArchive:
             if self._temp_archive_file:
                 self._temp_archive_file.close()
                 os.unlink(self.path)
-        except AttributeError:
+        except (AttributeError, OSError):
             # Finalizers in python are fairly problematic, especially when
             # breaking cycle references, there are no ordering guaranteees
             # so our tempfile may already be gc'd before this ref'd version
-            # is called.
+            # is called. The file may also already be gone, nothing to do
+            # about that from a finalizer either.
             pass
 
     @property
@@ -244,9 +245,12 @@ class PythonPackageArchive:
             self._zip_file.close()
             self._closed = True
         # created with delete=False, dropping the reference alone leaks it
-        self._temp_archive_file.close()
-        os.unlink(self._temp_archive_file.name)
-        self._temp_archive_file = None
+        try:
+            self._temp_archive_file.close()
+            os.unlink(self._temp_archive_file.name)
+        finally:
+            # don't leave __del__ to retry a removal that already failed
+            self._temp_archive_file = None
 
     def get_checksum(self, encoder=base64.b64encode, hasher=hashlib.sha256):
         """Return the b64 encoded sha256 checksum of the archive."""
