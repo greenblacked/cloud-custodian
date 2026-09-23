@@ -1264,10 +1264,10 @@ class TestMetricsFilter(BaseTest):
 
         with mock_datetime_now(parse_date("2020-12-03T04:47:15+00:00"), base_filters.metrics):
             for (days, expected_start, expected_end) in (
-                ((1 / 24.0), "2020-12-03T03:47:16+00:00", "2020-12-03T04:47:16+00:00"),
-                (1, "2020-12-02T04:48:00+00:00", "2020-12-03T04:48:00+00:00"),
-                (20, "2020-11-13T04:50:00+00:00", "2020-12-03T04:50:00+00:00"),
-                (90, "2020-09-04T05:00:00+00:00", "2020-12-03T05:00:00+00:00"),
+                ((1 / 24.0), "2020-12-03T03:47:16", "2020-12-03T04:47:16"),
+                (1, "2020-12-02T04:48:00", "2020-12-03T04:48:00"),
+                (20, "2020-11-13T04:50:00", "2020-12-03T04:50:00"),
+                (90, "2020-09-04T05:00:00", "2020-12-03T05:00:00"),
             ):
                 p = self.load_policy(
                     {
@@ -1368,12 +1368,12 @@ class TestMetricsFilter(BaseTest):
             window = metrics_filter.get_metric_window()
 
             self.assertEqual(
-                parse_date("2020-11-30T00:00:00+00:00"),
+                parse_date("2020-11-30T00:00:00"),
                 window.start
             )
 
             self.assertEqual(
-                parse_date("2020-12-03T00:00:00+00:00"),
+                parse_date("2020-12-03T00:00:00"),
                 window.end
             )
 

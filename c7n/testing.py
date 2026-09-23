@@ -313,7 +313,11 @@ def mock_datetime_now(tgt, dt):
     )
 
     def mocked_utcnow_naive():
-        return MockedDatetime.target
+        # match the real helper, which always returns naive utc
+        t = MockedDatetime.target
+        if t.tzinfo is not None:
+            t = t.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        return t
 
     patches = []
     if hasattr(dt, "datetime"):
@@ -324,10 +328,16 @@ def mock_datetime_now(tgt, dt):
         # patching the datetime module is a global mock, utcnow_naive is
         # imported into module namespaces, so patch each of its users.
         for mod in list(sys.modules.values()):
-            if mod is None or mod is utils:
+            if mod is None:
                 continue
+            # includes c7n.utils itself, for callers that go through the
+            # module (utils.utcnow_naive()) and for FormatDate.utcnow
             if getattr(mod, "utcnow_naive", None) is utils.utcnow_naive:
                 patches.append(mock.patch.object(mod, "utcnow_naive", mocked_utcnow_naive))
+    if not patches:
+        raise ValueError(
+            "mock_datetime_now: %r has neither a datetime class nor utcnow_naive to patch" % (
+                dt,))
     return _MockedPatches(patches, MockedDatetime)
 
 

@@ -26,6 +26,37 @@ class TestTesting(BaseTest):
             self.assertRegex,
             "^hello", "not hello world")
 
+    def test_mock_datetime_now_freezes_utils_callers(self):
+        # callers that go through the module (utils.utcnow_naive(), as
+        # aws.py/policy.py/metric.py do) and FormatDate.utcnow must be frozen
+        import datetime as dt_mod
+        from c7n.resources import aws
+        from c7n.testing import mock_datetime_now
+
+        target = parse_date("2020-12-03T04:47:15+00:00")
+        with mock_datetime_now(target, dt_mod):
+            self.assertEqual(utils.utcnow_naive(), datetime(2020, 12, 3, 4, 47, 15))
+            self.assertIsNone(utils.utcnow_naive().tzinfo)
+            self.assertEqual(
+                utils.FormatDate.utcnow().datetime, datetime(2020, 12, 3, 4, 47, 15))
+            self.assertIs(aws.utils.utcnow_naive, utils.utcnow_naive)
+        self.assertNotEqual(utils.utcnow_naive().year, 2020)
+
+    def test_mock_datetime_now_naive_for_aware_target(self):
+        # the real helper returns naive utc, the mock must too
+        from c7n.filters import metrics
+        from c7n.testing import mock_datetime_now
+
+        target = parse_date("2020-12-03T06:47:15+02:00")
+        with mock_datetime_now(target, metrics):
+            self.assertEqual(metrics.utcnow_naive(), datetime(2020, 12, 3, 4, 47, 15))
+
+    def test_mock_datetime_now_nothing_to_patch(self):
+        from c7n.testing import mock_datetime_now
+
+        with self.assertRaises(ValueError):
+            mock_datetime_now(parse_date("2020-12-03T04:47:15+00:00"), json)
+
 
 class Backoff(BaseTest):
 
