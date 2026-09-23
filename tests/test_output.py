@@ -47,6 +47,25 @@ class MetricsTest(BaseTest):
             isinstance(metrics_outputs.select(True, {}), MetricsOutput))
 
 
+class ExecutionContextExitTest(BaseTest):
+
+    def test_sys_stats_failure_still_flushes_output(self):
+        p = self.load_policy(
+            {'name': 'ctx-exit', 'resource': 'ec2'},
+            output_dir=self.get_temp_dir())
+        ctx = p.ctx
+        ctx.__enter__()
+        ctx.sys_stats.__exit__ = mock.Mock(side_effect=RuntimeError('psutil'))
+        ctx.metrics.flush = mock.Mock()
+        output_exit = mock.Mock(wraps=ctx.output.__exit__)
+        ctx.output.__exit__ = output_exit
+        with self.assertRaises(RuntimeError):
+            ctx.__exit__()
+        ctx.metrics.flush.assert_called_once_with()
+        output_exit.assert_called_once()
+        ctx.sys_stats.__exit__.assert_called_once()
+
+
 class DirOutputTest(BaseTest):
 
     def get_dir_output(self, location):

@@ -94,7 +94,6 @@ class ExecutionContext:
             self.metrics.put_metric('PolicyException', 1, "Count")
         self.output.write_file('metadata.json', dumps(self.get_metadata(), indent=2))
         self.api_stats.__exit__(exc_type, exc_value, exc_traceback)
-        self.sys_stats.__exit__(exc_type, exc_value, exc_traceback)
 
         with self.tracer.subsegment('output'):
             self.metrics.flush()
@@ -103,6 +102,9 @@ class ExecutionContext:
                 self.output_logs.__exit__(exc_type, exc_value, exc_traceback)
             self.output.__exit__(exc_type, exc_value, exc_traceback)
 
+        # after the output block, a sys stats (psutil) failure must not cost
+        # us the metrics flush and the output upload
+        self.sys_stats.__exit__(exc_type, exc_value, exc_traceback)
         self.tracer.__exit__()
 
         self.session_factory.policy_name = None
