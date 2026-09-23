@@ -1098,3 +1098,23 @@ def test_get_human_size_beyond_largest_suffix():
     # suffix rather than raising IndexError
     assert utils.get_human_size(1024 ** 9) == '1024.00 YB'
     assert utils.get_human_size(1024 ** 5 * 2000) == '1.95 EB'
+
+
+def test_error_code_arguments_are_sequences():
+    """`codes=('X')` is a string, and `in` on it does substring matching."""
+    import ast
+    import pathlib
+    import c7n
+
+    offenders = []
+    for path in pathlib.Path(c7n.__file__).parent.rglob('*.py'):
+        tree = ast.parse(path.read_text(), str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            for kw in node.keywords:
+                if (kw.arg in ('ignore_err_codes', 'retry_codes') and
+                        isinstance(kw.value, ast.Constant) and
+                        isinstance(kw.value.value, str)):
+                    offenders.append('%s:%d' % (path, kw.value.lineno))
+    assert offenders == []

@@ -547,7 +547,7 @@ class DeleteFileSystem(BaseAction):
         retry_delay = self.data.get('retry-delay', 1)
         retry_max_attempts = self.data.get('retry-max-attempts', 1)
         retry = get_retry(
-            retry_codes=('BadRequest'),
+            retry_codes=('BadRequest',),
             min_delay=retry_delay,
             max_attempts=retry_max_attempts,
             log_retries=True,

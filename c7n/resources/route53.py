@@ -277,7 +277,7 @@ class ResourceRecordSetRemove(BaseAction):
                             }
                         ]
                     },
-                    ignore_err_codes=('InvalidChangeBatch'))
+                    ignore_err_codes=('InvalidChangeBatch',))
         except Exception as e:
             self.log.warning(
                 "ResourceRecordSet delete error: %s", e)
@@ -322,7 +322,7 @@ class Delete(BaseAction):
                 self.manager.retry(
                     client.delete_hosted_zone,
                     Id=hz['Id'],
-                    ignore_err_codes=('NoSuchHostedZone'))
+                    ignore_err_codes=('NoSuchHostedZone',))
             except client.exceptions.HostedZoneNotEmpty as e:
                 self.log.warning(
                     "HostedZone: %s cannot be deleted, "
@@ -356,7 +356,7 @@ class Delete(BaseAction):
                         }
                     ]
                 },
-                ignore_err_codes=('InvalidChangeBatch'))
+                ignore_err_codes=('InvalidChangeBatch',))
 
 
 @HostedZone.action_registry.register('set-query-logging')
