@@ -169,6 +169,10 @@ class SqlKvCache(Cache):
     def save(self, key, data, timestamp=None):
         with self.conn as cursor:
             timestamp = timestamp or _utcnow()
+            if timestamp.tzinfo is not None:
+                # rows are naive utc, an aware value would neither compare
+                # nor sort against them
+                timestamp = timestamp.astimezone(timezone.utc).replace(tzinfo=None)
             cursor.execute(
                 'replace into c7n_cache (key, value, create_date) values (?, ?, ?)',
                 (sqlite3.Binary(encode(key)), sqlite3.Binary(encode(data)),
