@@ -178,15 +178,16 @@ class CloudFunctionManager:
                 region)}).get('uploadUrl')
         log.debug("uploading function code %s", url)
         http = self._get_http_client(self.client)
-        headers, response = http.request(
-            url, method='PUT',
-            headers={
-                'content-type': 'application/zip',
-                'Content-Length': '%d' % archive.size,
-                'x-goog-content-length-range': '0,104857600'
-            },
-            body=open(archive.path, 'rb')
-        )
+        with open(archive.path, 'rb') as body:
+            headers, response = http.request(
+                url, method='PUT',
+                headers={
+                    'content-type': 'application/zip',
+                    'Content-Length': '%d' % archive.size,
+                    'x-goog-content-length-range': '0,104857600'
+                },
+                body=body
+            )
         log.info("function code uploaded")
         if headers['status'] != '200':
             raise RuntimeError("%s\n%s" % (headers, response))
