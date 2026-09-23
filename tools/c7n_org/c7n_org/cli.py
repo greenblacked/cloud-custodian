@@ -52,14 +52,6 @@ from c7n_org import orgaccounts
 
 log = logging.getLogger('c7n_org')
 
-# Workaround OSX issue, note this exists for py2 but there
-# isn't anything we can do in that case.
-# https://bugs.python.org/issue33725
-if sys.platform == 'darwin' and (
-        sys.version_info.major > 3 and sys.version_info.minor > 4):
-    multiprocessing.set_start_method('spawn')
-
-
 WORKER_COUNT = int(
     os.environ.get('C7N_ORG_PARALLEL', multiprocessing.cpu_count() * 4))
 
