@@ -61,14 +61,16 @@ PROVIDER_PACKAGES = {
 def is_provider_missing(provider, err):
     """Is this ImportError the provider itself being absent?
 
+    Only a ModuleNotFoundError for the provider's top level package counts.
     Anything else - a missing dependency of an installed provider, a typo in
-    one of its modules - means the provider is installed but broken, which is
-    worth saying out loud rather than reporting as "not installed".
+    one of its modules (``c7n_gcp.resources.foo``), a bad ``from x import y``
+    - means the provider is installed but broken, which is worth saying out
+    loud rather than reporting as "not installed".
     """
-    pkg = PROVIDER_PACKAGES[provider]
-    if not err.name:
+    if provider == 'aws':
+        # aws lives in c7n itself, if we're running it's installed
         return False
-    return err.name == pkg or err.name.startswith(pkg + '.')
+    return isinstance(err, ModuleNotFoundError) and err.name == PROVIDER_PACKAGES[provider]
 
 
 def load_available(resources=True):
