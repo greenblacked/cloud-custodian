@@ -580,6 +580,10 @@ class UtilTest(BaseTest):
         self.assertEqual(first["required"], ["key", "type"])
         self.assertEqual(second["required"], ["key", "type"])
 
+    def test_type_schema_tuple_required(self):
+        self.assertEqual(
+            utils.type_schema("tester", required=("key",))["required"], ["key", "type"])
+
     def test_generate_arn(self):
         self.assertEqual(
             utils.generate_arn("s3", "my_bucket"), "arn:aws:s3:::my_bucket"

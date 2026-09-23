@@ -210,12 +210,9 @@ def type_schema(
     for k, v in props.items():
         if v is None:
             del s['properties'][k]
-    if not required:
-        required = []
-    if isinstance(required, list):
-        # copy, the caller may be reusing the list across schemas
-        required = required + ['type']
-    s['required'] = required
+    # copy, the caller may be reusing the list across schemas, and callers
+    # pass tuples too, which need 'type' just the same
+    s['required'] = list(required or ()) + ['type']
     if inherits:
         extended = s
         s = {'allOf': [{'$ref': i} for i in inherits]}
