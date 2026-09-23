@@ -919,6 +919,7 @@ class UserData(ValueFilter):
                 except ClientError as e:
                     if e.response['Error']['Code'] == 'InvalidInstanceId.NotFound':
                         continue
+                    raise
                 if 'Value' not in result['UserData']:
                     r[self.annotation] = None
                 else:

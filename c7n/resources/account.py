@@ -356,6 +356,7 @@ class CloudTrailEnabled(Filter):
                 except ClientError as e:
                     if e.response['Error']['Code'] == 'ResourceNotFoundException':
                         continue
+                    raise
                 filter_matched = None
                 if metric_filters_log_group:
                     for f in metric_filters_log_group:

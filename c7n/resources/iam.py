@@ -406,6 +406,7 @@ class DescribePolicy(DescribeSource):
             except ClientError as e:
                 if e.response['Error']['Code'] == 'NoSuchEntityException':
                     continue
+                raise
         return results
 
     def augment(self, resources):
