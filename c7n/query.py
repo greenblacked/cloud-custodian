@@ -415,13 +415,19 @@ class ConfigSource:
             futures = []
             for resource_set in chunks(resource_ids, 50):
                 futures.append(w.submit(self.get_resources, resource_set))
+            # log every failed chunk, but don't hand back (and let the
+            # manager cache) a silently partial resource list.
+            error = None
             for f in as_completed(futures):
                 if f.exception():
                     self.manager.log.error(
                         "Exception getting resources from config \n %s" % (
                             f.exception()))
+                    error = error or f.exception()
                     continue
                 results.extend(f.result())
+            if error is not None:
+                raise error
         return results
 
     def resources(self, query=None):

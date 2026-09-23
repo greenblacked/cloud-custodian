@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from unittest import mock
 
 
 from c7n.query import ResourceQuery, RetryPageIterator, TypeInfo
@@ -129,6 +130,36 @@ class ConfigSourceTest(BaseTest):
 
         p.data['query'] = [{'clause': "configuration.imageId = 'xyz'"}]
         self.assertIn("imageId = 'xyz'", source.get_query_params(None)['expr'])
+
+    def test_config_listed_resources_chunk_failure_raises(self):
+        # a failed chunk must not produce a silently partial (and then
+        # cached) resource list, every chunk is still attempted and logged.
+        p = self.load_policy({'name': 'x', 'resource': 'ec2'})
+        source = p.resource_manager.get_source('config')
+        ids = ['i-%03d' % i for i in range(120)]
+        client = mock.MagicMock()
+        client.get_paginator.return_value.paginate.return_value.build_full_result.return_value = {
+            'resourceIdentifiers': [{'resourceId': i} for i in ids]}
+
+        attempted = []
+
+        def get_resources(resource_set):
+            attempted.append(list(resource_set))
+            if 'i-060' in resource_set:
+                raise ValueError('config chunk failed')
+            return [{'InstanceId': i} for i in resource_set]
+
+        source.get_resources = get_resources
+        log = self.capture_logging('custodian.resources', level=logging.ERROR)
+        with self.assertRaises(ValueError):
+            source.get_listed_resources(client)
+        self.assertEqual(len(attempted), 3)
+        self.assertIn('config chunk failed', log.getvalue())
+
+        # and without failures every chunk is returned
+        source.get_resources = lambda rset: [{'InstanceId': i} for i in rset]
+        self.assertEqual(
+            sorted(r['InstanceId'] for r in source.get_listed_resources(client)), ids)
 
 
 class QueryResourceManagerTest(BaseTest):
