@@ -596,6 +596,60 @@ class TestTagTrim(BaseTest):
         self.assertFalse("Containers" in end_tags)
 
 
+class TestTagTrimUnit(BaseTest):
+
+    def get_action(self, **data):
+        p = self.load_policy(
+            {'name': 'ec2-tag-trim', 'resource': 'ec2',
+             'actions': [dict(type='tag-trim', **data)]},
+            session_factory=lambda *a, **kw: mock.MagicMock())
+        return p.resource_manager.actions[0]
+
+    def test_tag_trim_without_preserve(self):
+        self.patch(tags.TagTrim, "max_tag_count", 10)
+        action = self.get_action(space=1)
+        instance = {
+            'InstanceId': 'i-1',
+            'Tags': [{'Key': 'k%02d' % i, 'Value': 'v'} for i in range(10)]}
+        client = mock.MagicMock()
+        self.patch(tags.utils, 'local_session', lambda factory: mock.MagicMock(
+            client=mock.MagicMock(return_value=client)))
+        log = self.capture_logging('custodian.actions', level=logging.WARNING)
+        action.process([instance])
+        self.assertEqual(log.getvalue(), '')
+        client.delete_tags.assert_called_once()
+        self.assertEqual(
+            client.delete_tags.call_args[1]['Tags'], [{'Key': 'k00'}])
+
+
+class TestNormalizeTagUnit(BaseTest):
+
+    def test_action_enum_enforced(self):
+        for action in ('titlestrip', 'replace', 'bogus'):
+            with self.assertRaises(PolicyValidationError):
+                self.load_policy(
+                    {'name': 'ec2-normalize', 'resource': 'ec2',
+                     'actions': [{'type': 'normalize-tag', 'key': 'k', 'action': action}]},
+                    validate=True)
+        for action in ('upper', 'lower', 'title', 'strip'):
+            self.load_policy(
+                {'name': 'ec2-normalize', 'resource': 'ec2',
+                 'actions': [{'type': 'normalize-tag', 'key': 'k', 'action': action}]},
+                validate=True)
+
+    def test_strip_removes_text(self):
+        p = self.load_policy(
+            {'name': 'ec2-normalize', 'resource': 'ec2',
+             'actions': [{'type': 'normalize-tag', 'key': 'Env',
+                          'action': 'strip', 'value': 'blah'}]})
+        action = p.resource_manager.actions[0]
+        transformed = []
+        action.process_transform = lambda value, rset: transformed.append(value)
+        action.process([
+            {'InstanceId': 'i-1', 'Tags': [{'Key': 'Env', 'Value': 'hello-blah'}]}])
+        self.assertEqual(transformed, ['hello-'])
+
+
 class TestVolumeFilter(BaseTest):
 
     def test_ec2_attached_ebs_filter(self):
