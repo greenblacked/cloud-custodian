@@ -481,9 +481,11 @@ class TagActionFilter(Filter):
         if action_date.tzinfo:
             # if action_date is timezone aware, set to timezone provided
             action_date = action_date.astimezone(tz)
-            current_date = datetime.now(tz=tz)
         else:
-            current_date = datetime.now()
+            # a date only tag is written as the date in the policy's tz (utc
+            # by default), compare it against now in that tz, not host local.
+            action_date = action_date.replace(tzinfo=tz)
+        current_date = datetime.now(tz=tz)
 
         return current_date >= (
             action_date - timedelta(days=skew, hours=skew_hours))
