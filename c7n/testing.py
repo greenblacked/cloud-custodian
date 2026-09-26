@@ -1,5 +1,6 @@
 # Copyright The Cloud Custodian Authors.
 # SPDX-License-Identifier: Apache-2.0
+import contextlib
 import datetime
 import functools
 import io
@@ -11,6 +12,7 @@ import shutil
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
 from unittest import mock
 
@@ -279,6 +281,27 @@ class TextTestIO(io.StringIO):
         if not isinstance(b, str):
             b = b.decode("utf8")
         return super(TextTestIO, self).write(b)
+
+
+@contextlib.contextmanager
+def local_timezone(name):
+    """Run the block with the process's local timezone set to name.
+
+    time.tzset only exists on unix, so the enclosing test is skipped elsewhere.
+    """
+    if not hasattr(time, 'tzset'):
+        raise unittest.SkipTest('time.tzset is not available on this platform')
+    previous = os.environ.get('TZ')
+    os.environ['TZ'] = name
+    time.tzset()
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop('TZ', None)
+        else:
+            os.environ['TZ'] = previous
+        time.tzset()
 
 
 # Per http://blog.xelnor.net/python-mocking-datetime/

@@ -4,7 +4,6 @@ import datetime
 import gzip
 import logging
 import shutil
-import time
 from unittest import mock
 import os
 
@@ -15,7 +14,7 @@ from c7n.config import Config
 from c7n.output import (
     DirectoryOutput, BlobOutput, LogFile, LogMetrics, Metrics, metrics_outputs)
 from c7n.resources.aws import S3Output, MetricsOutput, inspect_bucket_region
-from c7n.testing import mock_datetime_now, TestUtils
+from c7n.testing import local_timezone, mock_datetime_now, TestUtils
 
 from .common import Bag, BaseTest
 
@@ -51,20 +50,10 @@ class MetricsTest(BaseTest):
     def test_log_metrics_timestamp_is_utc(self):
         # same as the cloudwatch metrics output, naive utc, whatever the
         # host's local timezone
-        def restore_tz(old=os.environ.get('TZ')):
-            if old is None:
-                os.environ.pop('TZ', None)
-            else:
-                os.environ['TZ'] = old
-            time.tzset()
-
-        self.addCleanup(restore_tz)
-        os.environ['TZ'] = 'Asia/Tokyo'
-        time.tzset()
-
         ctx = Bag(policy=Bag(name='test', resource_type='ec2'))
         moutput = LogMetrics(ctx, {})
-        moutput.put_metric('ResourceCount', 1, 'Count')
+        with local_timezone('Asia/Tokyo'):
+            moutput.put_metric('ResourceCount', 1, 'Count')
         stamp = moutput.buf[0]['Timestamp']
         self.assertIsNone(stamp.tzinfo)
         utcnow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)

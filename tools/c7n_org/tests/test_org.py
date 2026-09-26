@@ -4,12 +4,11 @@ import copy
 from datetime import timedelta
 from unittest import mock
 import os
-import time
 
 import pytest
 import yaml
 
-from c7n.testing import TestUtils
+from c7n.testing import TestUtils, local_timezone
 from c7n.utils import utcnow_naive
 from click.testing import CliRunner
 
@@ -1389,8 +1388,6 @@ projects:
 def test_report_account_s3_begin_date_is_utc(tmp_path, monkeypatch):
     # s3 output paths are laid out by utc date, the record lookup window must
     # be computed in utc too, not the host's local time.
-    monkeypatch.setenv('TZ', 'Asia/Tokyo')
-    time.tzset()
     monkeypatch.setattr(
         'c7n.resources.aws.inspect_bucket_region', lambda *a, **kw: 'us-east-1')
     captured = []
@@ -1400,14 +1397,11 @@ def test_report_account_s3_begin_date_is_utc(tmp_path, monkeypatch):
         return []
 
     monkeypatch.setattr(org, 'record_set', fake_record_set)
-    try:
+    with local_timezone('Asia/Tokyo'):
         org.report_account(
             {'name': 'dev', 'account_id': '112233445566'}, 'us-east-1',
             {'policies': [{'name': 'report-utc', 'resource': 'aws.ec2'}]},
             's3://a-bucket/prefix', str(tmp_path), False)
-    finally:
-        monkeypatch.undo()
-        time.tzset()
     expected = utcnow_naive() - timedelta(days=1)
     assert len(captured) == 1
     assert abs((expected - captured[0]).total_seconds()) < 60
