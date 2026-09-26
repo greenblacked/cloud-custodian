@@ -760,10 +760,11 @@ class Snapshot(BaseAction):
               - name: rds-snapshot
                 resource: rds
                 actions:
-                  - snapshot
+                  - type: snapshot
+                    snapshot-prefix: nightly
     """
 
-    schema = type_schema('snapshot')
+    schema = type_schema('snapshot', **{'snapshot-prefix': {'type': 'string'}})
     permissions = ('rds:CreateDBSnapshot',)
 
     def process(self, dbs):
