@@ -73,6 +73,28 @@ class MetricsTest(BaseTest):
 
 class ExecutionContextExitTest(BaseTest):
 
+    def test_enter_failure_exits_entered_outputs(self):
+        p = self.load_policy({'name': 'ctx-enter', 'resource': 'ec2'})
+        ctx = p.ctx
+        outputs = {}
+
+        def initialize():
+            for name in ('sys_stats', 'output', 'logs', 'api_stats'):
+                outputs[name] = mock.MagicMock(name=name)
+                setattr(ctx, name, outputs[name])
+            ctx.output_logs = None
+            outputs['logs'].__enter__.side_effect = RuntimeError('log group')
+
+        ctx.initialize = initialize
+        with self.assertRaisesRegex(RuntimeError, 'log group'):
+            ctx.__enter__()
+        outputs['sys_stats'].__exit__.assert_called_once()
+        outputs['output'].__exit__.assert_called_once()
+        # exited with the failure
+        self.assertIn(RuntimeError, outputs['output'].__exit__.call_args[0])
+        outputs['logs'].__exit__.assert_not_called()
+        outputs['api_stats'].__enter__.assert_not_called()
+
     def test_sys_stats_failure_still_flushes_output(self):
         p = self.load_policy(
             {'name': 'ctx-exit', 'resource': 'ec2'},
