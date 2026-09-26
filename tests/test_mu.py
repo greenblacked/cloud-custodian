@@ -1658,6 +1658,8 @@ class PythonArchiveTest(unittest.TestCase):
         # a failed unlink in remove() must not leave the finalizer to retry
         # it (and raise from __del__)
         archive = self.make_archive()
+        # windows can't unlink a file that is still open
+        archive._temp_archive_file.close()
         os.unlink(archive.path)
         with self.assertRaises(FileNotFoundError):
             archive.remove()
@@ -1669,6 +1671,8 @@ class PythonArchiveTest(unittest.TestCase):
         archive = PythonPackageArchive()
         archive.close()
         path = archive.path
+        # windows can't unlink a file that is still open
+        archive._temp_archive_file.close()
         os.unlink(path)
         # nothing to raise to from a finalizer
         archive.__del__()
