@@ -8,7 +8,6 @@ See docs/usage/outputs.rst
 
 """
 import contextlib
-import datetime
 import gzip
 import logging
 import os
@@ -295,7 +294,7 @@ class LogMetrics(Metrics):
     def _format_metric(self, key, value, unit, dimensions):
         d = {
             "MetricName": key,
-            "Timestamp": datetime.datetime.now(),
+            "Timestamp": utcnow_naive(),
             "Value": value,
             "Unit": unit}
         d["Dimensions"] = [
