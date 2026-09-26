@@ -283,6 +283,32 @@ class GenericPaginationTest(BaseTest):
         self.assertEqual(data, ['a'])
         stubber.assert_no_pending_responses()
 
+    def test_retry_only_when_asked(self):
+        # like the botocore paginator path, the generic one only retries
+        # when the manager passes its retry
+        def pages():
+            # fresh each time, build_full_result extends the first page's list
+            return [
+                ({}, {'WorkGroups': [{'Name': 'a'}], 'NextToken': 't1'}),
+                ({'NextToken': 't1'}, {'WorkGroups': [{'Name': 'b'}]})]
+        calls = []
+
+        def retry(func, *args, **kw):
+            calls.append(kw)
+            return func(*args, **kw)
+
+        with mock.patch.object(RetryPageIterator, 'retry', staticmethod(retry)):
+            client, stubber = self.stubbed('athena', 'list_work_groups', pages())
+            ResourceQuery(None)._invoke_client_enum(
+                client, 'list_work_groups', {}, 'WorkGroups')
+            self.assertEqual(calls, [])
+            client, stubber = self.stubbed('athena', 'list_work_groups', pages())
+            data = ResourceQuery(None)._invoke_client_enum(
+                client, 'list_work_groups', {}, 'WorkGroups', retry)
+        self.assertEqual([w['Name'] for w in data], ['a', 'b'])
+        self.assertEqual(len(calls), 2)
+        stubber.assert_no_pending_responses()
+
 
 class PaginateOpTest(BaseTest):
 
@@ -335,3 +361,10 @@ class PaginateOpTest(BaseTest):
         client, stubber = self.stubbed('ecs', 'list_clusters', [({}, {})])
         self.assertEqual(paginate_op(client, 'list_clusters', 'clusterArns'), [])
         stubber.assert_no_pending_responses()
+
+    def test_nested_result_key_rejected(self):
+        # .get() can't follow a path, it would always come back empty
+        client, stubber = self.stubbed('ecs', 'list_clusters', [])
+        for key in ('Outer.clusterArns', 'clusterArns[]'):
+            with self.assertRaisesRegex(ValueError, 'top level key'):
+                paginate_op(client, 'list_clusters', key)

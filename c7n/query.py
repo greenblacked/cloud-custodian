@@ -50,11 +50,13 @@ class ResourceQuery:
     def _invoke_client_enum(self, client, enum_op, params, path, retry=None):
         if client.can_paginate(enum_op):
             p = client.get_paginator(enum_op)
+        else:
+            p = _generic_paginator(client, enum_op, path)
+        if p is not None:
+            # both paginators retry only when the caller asks for it, as
+            # the single call below doesn't either
             if retry:
                 p.PAGE_ITERATOR_CLS = RetryPageIterator
-            results = p.paginate(**params)
-            data = results.build_full_result()
-        elif (p := _generic_paginator(client, enum_op, path)) is not None:
             data = p.paginate(**params).build_full_result()
         else:
             op = getattr(client, enum_op)
@@ -251,7 +253,6 @@ def _generic_paginator(client, enum_op, path):
         getattr(client, enum_op),
         {'input_token': token, 'output_token': token, 'result_key': result_key},
         model)
-    paginator.PAGE_ITERATOR_CLS = RetryPageIterator
     return paginator
 
 
@@ -260,15 +261,23 @@ def paginate_op(client, op, result_key, **params):
 
     Uses botocore's paginator when the op ships one, otherwise pages on a
     token the op takes and returns (see _generic_paginator). An op that
-    can't be paged either way is called once, as before.
+    can't be paged either way is called once, as before. Every call is
+    retried.
+
+    result_key names a top level key of the response; a nested path
+    (dotted, or any other jmespath expression) raises ValueError rather
+    than quietly returning nothing.
     """
+    if not result_key.isidentifier():
+        raise ValueError(
+            "paginate_op result_key must be a top level key, not %r" % (result_key,))
     if client.can_paginate(op):
         paginator = client.get_paginator(op)
-        paginator.PAGE_ITERATOR_CLS = RetryPageIterator
     else:
         paginator = _generic_paginator(client, op, result_key)
     if paginator is None:
         return QueryResourceManager.retry(getattr(client, op), **params).get(result_key, [])
+    paginator.PAGE_ITERATOR_CLS = RetryPageIterator
     return paginator.paginate(**params).build_full_result().get(result_key, [])
 
 
