@@ -308,6 +308,8 @@ def local_timezone(name):
 # naive implementation has issues with pypy
 
 real_datetime_class = datetime.datetime
+# module name prefixes mock_datetime_now searches for utcnow_naive imports
+_UTCNOW_NAIVE_PACKAGES = ('c7n', 'tests')
 
 
 def mock_datetime_now(tgt, dt):
@@ -350,8 +352,11 @@ def mock_datetime_now(tgt, dt):
     if dt is datetime:
         # patching the datetime module is a global mock, utcnow_naive is
         # imported into module namespaces, so patch each of its users.
-        for mod in list(sys.modules.values()):
-            if mod is None:
+        # Only look in custodian's own packages (c7n, the c7n_* providers
+        # and tools) and test packages (tests, tests_azure): a getattr on
+        # an arbitrary third party module can run its __getattr__ hook.
+        for name, mod in list(sys.modules.items()):
+            if mod is None or not name.startswith(_UTCNOW_NAIVE_PACKAGES):
                 continue
             # includes c7n.utils itself, for callers that go through the
             # module (utils.utcnow_naive()) and for FormatDate.utcnow
@@ -372,10 +377,13 @@ class _MockedPatches:
         self.target = target
 
     def __enter__(self):
-        for p in self.patches:
-            p.__enter__()
+        # if a patch fails to apply, undo the ones already applied
+        with contextlib.ExitStack() as stack:
+            for p in self.patches:
+                stack.enter_context(p)
+            self._stack = stack.pop_all()
         return self.target
 
     def __exit__(self, *args):
-        for p in reversed(self.patches):
-            p.__exit__(*args)
+        stack, self._stack = self._stack, None
+        return stack.__exit__(*args)

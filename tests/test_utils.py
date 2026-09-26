@@ -4,6 +4,7 @@ import json
 import pytest
 import ipaddress
 import os
+import sys
 import tempfile
 import time
 from unittest import mock
@@ -56,6 +57,37 @@ class TestTesting(BaseTest):
 
         with self.assertRaises(ValueError):
             mock_datetime_now(parse_date("2020-12-03T04:47:15+00:00"), json)
+
+    def test_mock_datetime_now_skips_third_party_modules(self):
+        # a module level __getattr__ must not be run by the utcnow_naive sweep
+        import datetime as dt_mod
+        import types
+        from c7n.testing import mock_datetime_now
+
+        looked_up = []
+        mod = types.ModuleType('thirdparty_lazy')
+
+        def module_getattr(name):
+            looked_up.append(name)
+            raise AttributeError(name)
+
+        mod.__getattr__ = module_getattr
+        with mock.patch.dict(sys.modules, thirdparty_lazy=mod), \
+                mock_datetime_now(parse_date("2020-12-03T04:47:15+00:00"), dt_mod):
+            self.assertEqual(utils.utcnow_naive(), datetime(2020, 12, 3, 4, 47, 15))
+        self.assertEqual(looked_up, [])
+
+    def test_mock_datetime_now_failed_enter_undoes_patches(self):
+        import types
+        from c7n.testing import _MockedPatches
+
+        holder = types.SimpleNamespace(value=1)
+        patches = _MockedPatches([
+            mock.patch.object(holder, 'value', 2),
+            mock.patch.object(holder, 'missing', 3)], None)
+        with self.assertRaises(AttributeError):
+            patches.__enter__()
+        self.assertEqual(holder.value, 1)
 
 
 class Backoff(BaseTest):
