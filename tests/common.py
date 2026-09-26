@@ -125,6 +125,11 @@ def record_api_params(session_factory, service, operation):
 
     Placebo replays responses without looking at requests, this gives a
     test a way to assert on what was asked for.
+
+    This relies on the replay session factory handing back the same cached
+    session on every call. Under C7N_FUNCTIONAL each call makes a new
+    session, so the handler is registered on a throwaway one and nothing is
+    recorded.
     """
     calls = []
 
