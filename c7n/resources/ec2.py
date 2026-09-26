@@ -1183,7 +1183,7 @@ class SsmCompliance(Filter):
         filters = [
             {
                 'Key': 'Status',
-                'Values': self.data['states'],
+                'Values': self.data.get('states', ['NON_COMPLIANT']),
                 'Type': 'EQUAL'
             },
             {
