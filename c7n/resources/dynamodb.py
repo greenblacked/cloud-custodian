@@ -906,7 +906,7 @@ class DaxSubnetFilter(SubnetFilter):
 
     def process(self, resources, event=None):
         client = local_session(self.manager.session_factory).client('dax')
-        subnet_groups = client.describe_subnet_groups()['SubnetGroups']
+        subnet_groups = query.paginate_op(client, 'describe_subnet_groups', 'SubnetGroups')
         self.groups = {s['SubnetGroupName']: s for s in subnet_groups}
         return super(DaxSubnetFilter, self).process(resources)
 

@@ -6,7 +6,7 @@ import os
 from unittest import mock
 
 
-from c7n.query import ResourceQuery, RetryPageIterator, TypeInfo
+from c7n.query import ResourceQuery, RetryPageIterator, TypeInfo, paginate_op
 from c7n.resources.vpc import InternetGateway
 
 from botocore.config import Config
@@ -281,4 +281,57 @@ class GenericPaginationTest(BaseTest):
         data = ResourceQuery(None)._invoke_client_enum(
             client, 'list_work_groups', {}, 'WorkGroups[].Name')
         self.assertEqual(data, ['a'])
+        stubber.assert_no_pending_responses()
+
+
+class PaginateOpTest(BaseTest):
+
+    def stubbed(self, service, method, pages, **params):
+        import boto3
+        from botocore.stub import Stubber
+        client = boto3.Session(region_name='us-east-1').client(
+            service, aws_access_key_id='x', aws_secret_access_key='x')
+        stubber = Stubber(client)
+        for expected, page in pages:
+            stubber.add_response(method, page, dict(params, **expected))
+        stubber.activate()
+        self.addCleanup(stubber.deactivate)
+        return client, stubber
+
+    def test_botocore_paginator(self):
+        client, stubber = self.stubbed('logs', 'describe_metric_filters', [
+            ({}, {'metricFilters': [{'filterName': 'a'}], 'nextToken': 't1'}),
+            ({'nextToken': 't1'}, {'metricFilters': [{'filterName': 'b'}]})],
+            logGroupName='trail')
+        self.assertTrue(client.can_paginate('describe_metric_filters'))
+        self.assertEqual(
+            [f['filterName'] for f in paginate_op(
+                client, 'describe_metric_filters', 'metricFilters', logGroupName='trail')],
+            ['a', 'b'])
+        stubber.assert_no_pending_responses()
+
+    def test_generic_paginator(self):
+        client, stubber = self.stubbed('lakeformation', 'list_resources', [
+            ({}, {'ResourceInfoList': [{'ResourceArn': 'arn:aws:s3:::a'}], 'NextToken': 't1'}),
+            ({'NextToken': 't1'}, {'ResourceInfoList': [{'ResourceArn': 'arn:aws:s3:::b'}]})])
+        self.assertFalse(client.can_paginate('list_resources'))
+        self.assertEqual(
+            [r['ResourceArn'] for r in paginate_op(client, 'list_resources', 'ResourceInfoList')],
+            ['arn:aws:s3:::a', 'arn:aws:s3:::b'])
+        stubber.assert_no_pending_responses()
+
+    def test_no_page_token_single_call(self):
+        # NextMarker is not a token the generic paginator pages on
+        client, stubber = self.stubbed('wafv2', 'list_logging_configurations', [
+            ({}, {'LoggingConfigurations': [], 'NextMarker': 'm1'})], Scope='REGIONAL')
+        self.assertEqual(
+            paginate_op(
+                client, 'list_logging_configurations', 'LoggingConfigurations',
+                Scope='REGIONAL'),
+            [])
+        stubber.assert_no_pending_responses()
+
+    def test_missing_result_key(self):
+        client, stubber = self.stubbed('ecs', 'list_clusters', [({}, {})])
+        self.assertEqual(paginate_op(client, 'list_clusters', 'clusterArns'), [])
         stubber.assert_no_pending_responses()

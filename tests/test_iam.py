@@ -7,7 +7,7 @@ import time
 from unittest import mock
 from unittest import TestCase
 
-from .common import load_data, BaseTest, functional
+from .common import load_data, BaseTest, functional, record_api_params
 
 import freezegun
 import pytest
@@ -4114,3 +4114,38 @@ class IamUserGroupFilterErrorTest(BaseTest):
         with self.assertLogs(f.log, level='ERROR') as logs:
             self.assertEqual(f.process([{'UserName': 'alice'}]), [])
         self.assertIn('throttled', logs.output[0])
+
+
+class IamPaginationTest(BaseTest):
+
+    def test_iam_role_service_usage_paginates_ecs(self):
+        factory = self.replay_flight_data('test_iam_role_usage_ecs_paginated')
+        described = record_api_params(factory, 'ecs', 'DescribeServices')
+        p = self.load_policy(
+            {'name': 'iam-used-role', 'resource': 'iam-role',
+             'filters': [{'type': 'used', 'state': True}]},
+            session_factory=factory)
+        f = p.resource_manager.filters[0]
+        roles = f.scan_ecs_roles()
+        # clusters come from list_clusters, not the default only describe_clusters
+        # and the app cluster's services span two pages
+        self.assertEqual(described, [{
+            'cluster': 'arn:aws:ecs:us-east-1:123456789012:cluster/app',
+            'services': [
+                'arn:aws:ecs:us-east-1:123456789012:service/app/web',
+                'arn:aws:ecs:us-east-1:123456789012:service/app/worker']}])
+        self.assertIn('arn:aws:iam::123456789012:role/ecs-worker', roles)
+        perms = f.get_permissions()
+        self.assertIn('ecs:ListClusters', perms)
+        self.assertIn('ecs:ListServices', perms)
+
+    def test_iam_group_delete_force_paginates_users(self):
+        factory = self.replay_flight_data('test_iam_group_delete_force_paginated')
+        removed = record_api_params(factory, 'iam', 'RemoveUserFromGroup')
+        p = self.load_policy(
+            {'name': 'iam-group-delete', 'resource': 'iam-group',
+             'actions': [{'type': 'delete', 'force': True}]},
+            session_factory=factory)
+        p.resource_manager.actions[0].process([{
+            'GroupName': 'devs', 'Arn': 'arn:aws:iam::123456789012:group/devs'}])
+        self.assertEqual([r['UserName'] for r in removed], ['alice', 'bob'])

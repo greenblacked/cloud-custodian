@@ -120,6 +120,22 @@ class ConfigTest(BaseTest):
         return queue_url
 
 
+def record_api_params(session_factory, service, operation):
+    """Collect the parameters of every call made to service.operation.
+
+    Placebo replays responses without looking at requests, this gives a
+    test a way to assert on what was asked for.
+    """
+    calls = []
+
+    def record(params, **kwargs):
+        calls.append(dict(params))
+
+    session_factory().events.register(
+        'provide-client-params.%s.%s' % (service, operation), record)
+    return calls
+
+
 def placebo_dir(name):
     return os.path.join(os.path.dirname(__file__), "data", "placebo", name)
 

@@ -563,6 +563,24 @@ class TestHealthEventsFilter(BaseTest):
         resources = policy.run()
         self.assertEqual(len(resources), 1)
 
+    def test_ec2_health_events_filter_paginated(self):
+        # the instance's event is on the second page of health events
+        session_factory = self.replay_flight_data("test_ec2_health_events_filter_paginated")
+        policy = self.load_policy(
+            {
+                "name": "ec2-health-events-filter",
+                "resource": "ec2",
+                "filters": [{"type": "health-event"}],
+            },
+            session_factory=session_factory,
+        )
+        resources = policy.run()
+        self.assertEqual(len(resources), 1)
+        self.assertEqual(
+            [e['arn'] for e in resources[0]['c7n:HealthEvent']],
+            ['arn:aws:health:us-west-2::event/AWS_EC2_PERSISTENT_INSTANCE_RETIREMENT_SCHEDULED'
+             '12345678-1234-1234-1234-123456789012'])
+
 
 class TestTagTrim(BaseTest):
 
@@ -2444,6 +2462,23 @@ class TestLaunchTemplate(BaseTest):
         resources = p.run()
         self.assertEqual(len(resources), 8)
         self.assertTrue(all(['LaunchTemplateData' in r for r in resources]))
+
+    def test_launch_template_versions_paginated(self):
+        # a template's versions span two pages, both when enumerating and
+        # when fetching by template id
+        factory = self.replay_flight_data('test_launch_template_versions_paginated')
+        p = self.load_policy({
+            'name': 'lt-versions',
+            'resource': 'aws.launch-template-version'}, session_factory=factory)
+        resources = p.run()
+        self.assertEqual(sorted(r['VersionNumber'] for r in resources), [1, 2])
+
+        factory = self.replay_flight_data('test_launch_template_versions_paginated')
+        p = self.load_policy({
+            'name': 'lt-versions',
+            'resource': 'aws.launch-template-version'}, session_factory=factory)
+        resources = p.resource_manager.get_resources(['lt-0877401c93c294001'])
+        self.assertEqual(sorted(r['VersionNumber'] for r in resources), [1, 2])
 
     def test_launch_template_id_not_found(self):
         factory = self.replay_flight_data("test_launch_template_id_not_found")

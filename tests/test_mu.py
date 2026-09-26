@@ -16,6 +16,8 @@ from unittest import mock
 from unittest.mock import patch
 import zipfile
 
+import boto3
+from botocore.stub import Stubber
 
 from c7n import mu as c7n_mu
 from c7n.config import Config
@@ -1391,7 +1393,7 @@ class SQSSubscriptionTest(BaseTest):
 
     def get_client(self, mappings=()):
         client = mock.MagicMock()
-        client.list_event_source_mappings.return_value = {
+        client.get_paginator.return_value.paginate.return_value.build_full_result.return_value = {
             'EventSourceMappings': list(mappings)}
         session = mock.MagicMock()
         session.client.return_value = client
@@ -1434,6 +1436,47 @@ class SQSSubscriptionTest(BaseTest):
         self.assertFalse(sub.add(mock.MagicMock(name='func'), None))
         client.update_event_source_mapping.assert_not_called()
         client.create_event_source_mapping.assert_not_called()
+
+    def test_mappings_are_paginated(self):
+        # a queue whose mapping is only on the second page is already
+        # subscribed, and must be neither subscribed again nor missed on remove
+        client = boto3.Session(region_name='us-east-1').client(
+            'lambda', aws_access_key_id='x', aws_secret_access_key='x')
+        self.patch(c7n_mu, 'local_session', lambda factory: mock.MagicMock(
+            client=mock.MagicMock(return_value=client)))
+        func = mock.MagicMock()
+        func.name = 'custodian-sqs'
+        queue = 'arn:aws:sqs:us-east-1:123456789012:page-two'
+        pages = [
+            {'EventSourceMappings': [{
+                'EventSourceArn': 'arn:aws:sqs:us-east-1:123456789012:page-one',
+                'UUID': 'a1b2c3d4-0000-0000-0000-000000000001',
+                'State': 'Enabled', 'BatchSize': 10}],
+             'NextMarker': 'page-2'},
+            {'EventSourceMappings': [{
+                'EventSourceArn': queue,
+                'UUID': 'a1b2c3d4-0000-0000-0000-000000000002',
+                'State': 'Enabled', 'BatchSize': 10}]}]
+        sub = SQSSubscription(None, [queue])
+        with Stubber(client) as stubber:
+            stubber.add_response(
+                'list_event_source_mappings', pages[0], {'FunctionName': func.name})
+            stubber.add_response(
+                'list_event_source_mappings', pages[1],
+                {'FunctionName': func.name, 'Marker': 'page-2'})
+            self.assertFalse(sub.add(func, None))
+            stubber.assert_no_pending_responses()
+
+            stubber.add_response(
+                'list_event_source_mappings', pages[0], {'FunctionName': func.name})
+            stubber.add_response(
+                'list_event_source_mappings', pages[1],
+                {'FunctionName': func.name, 'Marker': 'page-2'})
+            stubber.add_response(
+                'delete_event_source_mapping', {},
+                {'UUID': 'a1b2c3d4-0000-0000-0000-000000000002'})
+            self.assertTrue(sub.remove(func))
+            stubber.assert_no_pending_responses()
 
 
 class PythonArchiveTest(unittest.TestCase):

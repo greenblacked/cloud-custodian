@@ -63,7 +63,8 @@ class UnexpectedClientErrorTest(BaseTest):
             'TrailARN': 'arn:aws:cloudtrail:us-east-1:123456789012:trail/t',
             'CloudWatchLogsLogGroupArn':
                 'arn:aws:logs:us-east-1:123456789012:log-group:trail-logs:*'}]}
-        logs.describe_metric_filters.side_effect = client_error()
+        logs.get_paginator.return_value.paginate.return_value.build_full_result.side_effect = (
+            client_error())
         self.patch(account, 'local_session', session_with(
             cloudtrail=cloudtrail, logs=logs,
             cloudwatch=mock.MagicMock(), sns=mock.MagicMock()))

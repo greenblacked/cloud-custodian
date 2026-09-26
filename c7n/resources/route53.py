@@ -680,8 +680,10 @@ class ResolverQueryLogConfig(QueryResourceManager):
             rqlc['Tags'] = self.retry(
                 client.list_tags_for_resource,
                 ResourceArn=rqlc['Arn'])['Tags']
-            rqlc[self.annotation_key] = client.list_resolver_query_log_config_associations().get(
-                'ResolverQueryLogConfigAssociations')
+            rqlc[self.annotation_key] = query.paginate_op(
+                client, 'list_resolver_query_log_config_associations',
+                'ResolverQueryLogConfigAssociations',
+                Filters=[{'Name': 'ResolverQueryLogConfigId', 'Values': [rqlc['Id']]}])
         return rqlcs
 
 

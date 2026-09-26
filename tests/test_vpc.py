@@ -2277,6 +2277,17 @@ class SecurityGroupTest(BaseTest):
         )
 
     @functional
+    def test_stale_paginated(self):
+        # the vpc's stale groups span two pages
+        factory = self.replay_flight_data("test_security_group_stale_paginated")
+        p = self.load_policy(
+            {"name": "sg-stale", "resource": "security-group", "filters": ["stale"]},
+            session_factory=factory,
+        )
+        resources = p.run()
+        self.assertEqual(
+            sorted(r["GroupId"] for r in resources), ["sg-0first", "sg-0second"])
+
     def test_stale(self):
         # setup a multi vpc security group reference, break the ref
         # and look for stale
@@ -4611,6 +4622,26 @@ class TestPrefixList(BaseTest):
         resources = p.run()
         assert 'c7n:matched-entries' in resources[0]
         assert 'c7n:prefix-entries' in resources[0]
+
+    def test_prefix_entry_paginated(self):
+        # the matching entry is on the second page of entries
+        factory = self.replay_flight_data("test_prefix_list_entry_paginated")
+        p = self.load_policy(
+            {'name': 'prefix-get',
+             'resource': 'aws.prefix-list',
+             'filters': [
+                 {'type': 'entry',
+                  'key': 'Cidr',
+                  'value': '172.31.2.10/32',
+                  'value_type': 'cidr',
+                  'op': 'contains'}
+             ]},
+            session_factory=factory)
+        resources = p.run()
+        self.assertEqual(len(resources), 1)
+        self.assertEqual(
+            [e['Cidr'] for e in resources[0]['c7n:prefix-entries']],
+            ['10.0.0.0/16', '172.31.0.0/16'])
 
 
 class TestModifySubnet(BaseTest):

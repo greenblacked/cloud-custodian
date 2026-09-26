@@ -255,6 +255,23 @@ def _generic_paginator(client, enum_op, path):
     return paginator
 
 
+def paginate_op(client, op, result_key, **params):
+    """Call op across every page it returns, and give back result_key's items.
+
+    Uses botocore's paginator when the op ships one, otherwise pages on a
+    token the op takes and returns (see _generic_paginator). An op that
+    can't be paged either way is called once, as before.
+    """
+    if client.can_paginate(op):
+        paginator = client.get_paginator(op)
+        paginator.PAGE_ITERATOR_CLS = RetryPageIterator
+    else:
+        paginator = _generic_paginator(client, op, result_key)
+    if paginator is None:
+        return QueryResourceManager.retry(getattr(client, op), **params).get(result_key, [])
+    return paginator.paginate(**params).build_full_result().get(result_key, [])
+
+
 sources = PluginRegistry('sources')
 
 

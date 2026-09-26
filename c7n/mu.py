@@ -1650,11 +1650,15 @@ class SQSSubscription:
         self.session_factory = session_factory
         self.batch_size = batch_size
 
+    @staticmethod
+    def get_event_mappings(client, func):
+        mappings = client.get_paginator('list_event_source_mappings').paginate(
+            FunctionName=func.name).build_full_result().get('EventSourceMappings', ())
+        return {m['EventSourceArn']: m for m in mappings}
+
     def add(self, func, existing):
         client = local_session(self.session_factory).client('lambda')
-        event_mappings = {
-            m['EventSourceArn']: m for m in client.list_event_source_mappings(
-                FunctionName=func.name).get('EventSourceMappings', ())}
+        event_mappings = self.get_event_mappings(client, func)
 
         modified = False
         for queue_arn in self.queue_arns:
@@ -1681,9 +1685,7 @@ class SQSSubscription:
 
     def remove(self, func, func_deleted=True):
         client = local_session(self.session_factory).client('lambda')
-        event_mappings = {
-            m['EventSourceArn']: m for m in client.list_event_source_mappings(
-                FunctionName=func.name).get('EventSourceMappings', ())}
+        event_mappings = self.get_event_mappings(client, func)
 
         found = None
         for queue_arn in self.queue_arns:
