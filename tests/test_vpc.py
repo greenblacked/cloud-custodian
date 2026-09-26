@@ -2276,7 +2276,6 @@ class SecurityGroupTest(BaseTest):
             ["sg-1235a", "sg-4671"],
         )
 
-    @functional
     def test_stale_paginated(self):
         # the vpc's stale groups span two pages
         factory = self.replay_flight_data("test_security_group_stale_paginated")
@@ -2288,6 +2287,7 @@ class SecurityGroupTest(BaseTest):
         self.assertEqual(
             sorted(r["GroupId"] for r in resources), ["sg-0first", "sg-0second"])
 
+    @functional
     def test_stale(self):
         # setup a multi vpc security group reference, break the ref
         # and look for stale
