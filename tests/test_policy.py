@@ -1937,6 +1937,26 @@ class PolicyExecutionModeTest(BaseTest):
 
 class LambdaModeTest(BaseTest):
 
+    def test_log_false(self):
+        p = self.load_policy({
+            'name': 'foobar',
+            'resource': 'aws.ec2',
+            'mode': {
+                'type': 'periodic',
+                'schedule': 'rate(1 day)',
+                'log': False}},
+            validate=True)
+
+        root = logging.getLogger()
+        existing = logging.StreamHandler()
+        self.addCleanup(setattr, root, 'handlers', root.handlers[:])
+        root.handlers = [existing]
+        with mock.patch.object(root, 'removeHandler', wraps=root.removeHandler) as remove:
+            p.get_execution_mode().setup_exec_environment({})
+        remove.assert_called_once_with(existing)
+        self.assertEqual(len(root.handlers), 1)
+        self.assertIsInstance(root.handlers[0], logging.NullHandler)
+
     def test_tags_validation(self):
         log_file = self.capture_logging('c7n.policy', level=logging.INFO)
         self.load_policy({

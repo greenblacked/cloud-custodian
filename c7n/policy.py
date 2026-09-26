@@ -405,7 +405,9 @@ class LambdaMode(ServerlessExecutionMode):
             'kms_key_arn': {'type': 'string'},
             'tracing_config': {'type': 'object'},
             'security_groups': {'type': 'array'},
-            'subnets': {'type': 'array'}
+            'subnets': {'type': 'array'},
+            # false drops the root logger's handlers in the lambda
+            'log': {'type': 'boolean'},
         }
     }
 
@@ -521,7 +523,8 @@ class LambdaMode(ServerlessExecutionMode):
         mode = self.policy.data.get('mode', {})
         if not bool(mode.get("log", True)):
             root = logging.getLogger()
-            map(root.removeHandler, root.handlers[:])
+            for handler in root.handlers[:]:
+                root.removeHandler(handler)
             root.handlers = [logging.NullHandler()]
 
     def run_resource_set(self, event, resources):
